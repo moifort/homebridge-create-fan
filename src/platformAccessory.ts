@@ -1,7 +1,7 @@
 import {CharacteristicValue, PlatformAccessory, Service} from 'homebridge';
 
 import {HomebridgeCreateCeilingFan} from './platform';
-import TuyAPI from 'tuyapi';
+import TuyAPI, {DPSObject} from 'tuyapi';
 
 /**
  * Platform Accessory
@@ -18,7 +18,7 @@ export class CeilingFanAccessory {
    */
   private state = {
     fanOn: false,
-    fanSpeed: 100,
+    fanSpeed: 100 / 6 * 2,
     lightOn: false,
   };
 
@@ -44,27 +44,51 @@ export class CeilingFanAccessory {
     // Fan
     this.fanService = this.accessory.getService(this.platform.Service.Fan) || this.accessory.addService(this.platform.Service.Fan);
     this.fanService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
+
+    // Fan state
     this.fanService.getCharacteristic(this.platform.Characteristic.On)
       .onSet(async (value: CharacteristicValue) => {
         await device.set({dps: 60, set: value.valueOf() as boolean});
       })
       .onGet(() => this.state.fanOn);
-
-    device.on('data', (data) => {
+    const stateHook = (data: DPSObject) => {
       if (data.dps['60']) {
         this.state.fanOn = data.dps['60'] as boolean;
         this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
       }
-    });
+    };
+    device.on('data', stateHook);
+    device.on('dp-refresh', stateHook);
 
-    device.on('dp-refresh', (data) => {
-      if (data.dps['60']) {
-        this.state.fanOn = data.dps['60'] as boolean;
-        this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
+    // Fan speed
+    this.fanService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
+      .onSet(async (value: CharacteristicValue) => {
+        const speed = Math.floor(6 / 100 * (value.valueOf() as number));
+        await device.set({dps: 62, set: speed === 0 ? 1 : speed});
+      })
+      .onGet(() => this.state.fanSpeed);
+    const speedHook = (data: DPSObject) => {
+      if (data.dps['62']) {
+        this.state.fanSpeed = 100 / 6 * (data.dps['62'] as number);
+        this.fanService.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.state.fanSpeed);
       }
-    });
+    };
+    device.on('data', speedHook);
+    device.on('dp-refresh', speedHook);
 
-    // Light
+    // // Fan direction
+    // this.fanService.getCharacteristic(this.api.hap.Characteristic.RotationDirection)
+    //   .onGet(this.fetchFanDirection.bind(this))
+    //   .onSet(this.handleFanDirection.bind(this));
+    //
+    // device.on('dp-refresh', (data) => {
+    //   if (data.dps['60']) {
+    //     this.state.fanOn = data.dps['60'] as boolean;
+    //     this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
+    //   }
+    // });
+
+    // Fan Light
     this.lightService = this.accessory.getService(this.platform.Service.Lightbulb)
       || this.accessory.addService(this.platform.Service.Lightbulb);
     this.lightService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
@@ -74,19 +98,14 @@ export class CeilingFanAccessory {
       })
       .onGet(() => this.state.lightOn);
 
-    device.on('data', (data) => {
+    const lightStateHook = (data: DPSObject) => {
       if (data.dps['20']) {
         this.state.lightOn = data.dps['20'] as boolean;
         this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
       }
-    });
-
-    device.on('dp-refresh', (data) => {
-      if (data.dps['20']) {
-        this.state.lightOn = data.dps['20'] as boolean;
-        this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
-      }
-    });
+    };
+    device.on('data', lightStateHook);
+    device.on('dp-refresh', lightStateHook);
 
     device.find().then(() => device.connect());
 
