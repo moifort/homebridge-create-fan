@@ -18,7 +18,7 @@ export class CeilingFanAccessory {
    */
   private state = {
     fanOn: false,
-    fanSpeed: 100 / 6 * 2,
+    fanSpeed: 20,
     lightOn: false,
   };
 
@@ -69,7 +69,8 @@ export class CeilingFanAccessory {
       .onGet(() => this.state.fanSpeed);
     const speedHook = (data: DPSObject) => {
       if (data.dps['62']) {
-        this.state.fanSpeed = 100 / 6 * (data.dps['62'] as number);
+        const speed = 100 / 6 * (data.dps['62'] as number);
+        this.state.fanSpeed = speed > this.state.fanSpeed && this.state.fanSpeed > speed + 100 / 6 ? this.state.fanSpeed : speed;
         this.fanService.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.state.fanSpeed);
       }
     };
@@ -94,7 +95,7 @@ export class CeilingFanAccessory {
     this.lightService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
     this.lightService.getCharacteristic(this.platform.Characteristic.On)
       .onSet(async (value: CharacteristicValue) => {
-        await device.set({dps: 20, set: value.valueOf() as boolean});
+        await device.set({ multiple: true, data: { 20: value.valueOf() as boolean, 23: 500 } });
       })
       .onGet(() => this.state.lightOn);
 
