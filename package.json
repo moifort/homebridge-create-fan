@@ -32,6 +32,7 @@
     "tuya"
   ],
   "dependencies": {
+    "ts-pattern": "^4.3.0",
     "tuyapi": "^7.5.2"
   },
   "devDependencies": {
