@@ -6,10 +6,11 @@ import TuyAPI from 'tuyapi';
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
- * Each accessory may expose multiple services of different service types.
+ * Each accessory may expose multiple services of different fanService types.
  */
 export class CeilingFanAccessory {
-  private service: Service;
+  private fanService: Service;
+  private lightService: Service;
 
   /**
    * These are just used to create a working example
@@ -18,6 +19,7 @@ export class CeilingFanAccessory {
   private state = {
     fanOn: false,
     fanSpeed: 100,
+    lightOn: false,
   };
 
   constructor(
@@ -40,26 +42,49 @@ export class CeilingFanAccessory {
       .setCharacteristic(this.platform.Characteristic.SerialNumber, accessory.context.device.id);
 
     // Fan
-    this.service = this.accessory.getService(this.platform.Service.Fan) || this.accessory.addService(this.platform.Service.Fan);
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
-    this.service.getCharacteristic(this.platform.Characteristic.On)
+    this.fanService = this.accessory.getService(this.platform.Service.Fan) || this.accessory.addService(this.platform.Service.Fan);
+    this.fanService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
+    this.fanService.getCharacteristic(this.platform.Characteristic.On)
       .onSet(async (value: CharacteristicValue) => {
         await device.set({dps: 60, set: value.valueOf() as boolean});
       })
       .onGet(() => this.state.fanOn);
 
-    // Define webhooks
     device.on('data', (data) => {
       if (data.dps['60']) {
         this.state.fanOn = data.dps['60'] as boolean;
-        this.service.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
+        this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
       }
     });
 
     device.on('dp-refresh', (data) => {
       if (data.dps['60']) {
         this.state.fanOn = data.dps['60'] as boolean;
-        this.service.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
+        this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
+      }
+    });
+
+    // Light
+    this.lightService = this.accessory.getService(this.platform.Service.Lightbulb)
+      || this.accessory.addService(this.platform.Service.Lightbulb);
+    this.lightService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
+    this.lightService.getCharacteristic(this.platform.Characteristic.On)
+      .onSet(async (value: CharacteristicValue) => {
+        await device.set({dps: 20, set: value.valueOf() as boolean});
+      })
+      .onGet(() => this.state.lightOn);
+
+    device.on('data', (data) => {
+      if (data.dps['20']) {
+        this.state.lightOn = data.dps['20'] as boolean;
+        this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
+      }
+    });
+
+    device.on('dp-refresh', (data) => {
+      if (data.dps['20']) {
+        this.state.lightOn = data.dps['20'] as boolean;
+        this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
       }
     });
 
@@ -69,25 +94,25 @@ export class CeilingFanAccessory {
     //   .onGet(this.fetchFanOn.bind(this))
     //   .onSet(this.handleFanOn.bind(this));
 
-    // // get the LightBulb service if it exists, otherwise create a new LightBulb service
+    // // get the LightBulb fanService if it exists, otherwise create a new LightBulb fanService
     // // you can create multiple services for each accessory
-    // this.service = this.accessory.getService(this.platform.Service.Lightbulb)
+    // this.fanService = this.accessory.getService(this.platform.Service.Lightbulb)
     // || this.accessory.addService(this.platform.Service.Lightbulb);
     //
-    // // set the service name, this is what is displayed as the default name on the Home app
+    // // set the fanService name, this is what is displayed as the default name on the Home app
     // // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    // this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.exampleDisplayName);
+    // this.fanService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.exampleDisplayName);
     //
-    // // each service must implement at-minimum the "required characteristics" for the given service type
+    // // each fanService must implement at-minimum the "required characteristics" for the given fanService type
     // // see https://developers.homebridge.io/#/service/Lightbulb
     //
     // // register handlers for the On/Off Characteristic
-    // this.service.getCharacteristic(this.platform.Characteristic.On)
+    // this.fanService.getCharacteristic(this.platform.Characteristic.On)
     //   .onSet(this.setOn.bind(this))                // SET - bind to the `setOn` method below
     //   .onGet(this.getOn.bind(this));               // GET - bind to the `getOn` method below
     //
     // // register handlers for the Brightness Characteristic
-    // this.service.getCharacteristic(this.platform.Characteristic.Brightness)
+    // this.fanService.getCharacteristic(this.platform.Characteristic.Brightness)
     //   .onSet(this.setBrightness.bind(this));       // SET - bind to the 'setBrightness` method below
     //
     // /**
@@ -154,7 +179,7 @@ export class CeilingFanAccessory {
   //  * asynchronously instead using the `updateCharacteristic` method instead.
   //
   //  * @example
-  //  * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
+  //  * this.fanService.updateCharacteristic(this.platform.Characteristic.On, true)
   //  */
   // async getOn(): Promise<CharacteristicValue> {
   //   // implement your own code to check if the device is on
