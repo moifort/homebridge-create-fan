@@ -1,16 +1,16 @@
 {
-  "private": true,
-  "displayName": "Plugin Name",
-  "name": "homebridge-plugin-name",
-  "version": "1.0.0",
-  "description": "A short description about what your plugin does.",
+  "private": false,
+  "displayName": "Hombridge Create Ceiling Fan",
+  "name": "homebridge-create-ceiling-fan",
+  "version": "0.0.1",
+  "description": "Free the full potential of your ceiling fan with Homebridge",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME.git"
+    "url": "https://github.com/moifort/homebridge-create-fan.git"
   },
   "bugs": {
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME/issues"
+    "url": "https://github.com/moifort/homebridge-create-fan/issues"
   },
   "engines": {
     "node": ">=14.18.1",
@@ -21,10 +21,15 @@
     "lint": "eslint src/**.ts --max-warnings=0",
     "watch": "npm run build && npm link && nodemon",
     "build": "rimraf ./dist && tsc",
-    "prepublishOnly": "npm run lint && npm run build"
+    "prepublishOnly": "npm run lint && npm run build",
+    "publish": "npm run build && npm publish"
   },
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "create",
+    "fan",
+    "ceiling fan",
+    "tuya"
   ],
   "dependencies": {},
   "devDependencies": {

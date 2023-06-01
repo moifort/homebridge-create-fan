@@ -1,14 +1,14 @@
-import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
+import {API, Characteristic, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service} from 'homebridge';
 
-import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
-import { ExamplePlatformAccessory } from './platformAccessory';
+import {PLATFORM_NAME, PLUGIN_NAME} from './settings';
+import {CeilingFanAccessory} from './platformAccessory';
 
 /**
  * HomebridgePlatform
  * This class is the main constructor for your plugin, this is where you should
  * parse the user config and discover/register accessories with Homebridge.
  */
-export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
+export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
 
@@ -87,7 +87,7 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
 
         // create the accessory handler for the restored accessory
         // this is imported from `platformAccessory.ts`
-        new ExamplePlatformAccessory(this, existingAccessory);
+        new CeilingFanAccessory(this, existingAccessory);
 
         // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, eg.:
         // remove platform accessories when no longer present
@@ -106,7 +106,7 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
 
         // create the accessory handler for the newly create accessory
         // this is imported from `platformAccessory.ts`
-        new ExamplePlatformAccessory(this, accessory);
+        new CeilingFanAccessory(this, accessory);
 
         // link the accessory to your platform
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);

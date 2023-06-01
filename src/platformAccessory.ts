@@ -1,13 +1,13 @@
-import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
+import {CharacteristicValue, PlatformAccessory, Service} from 'homebridge';
 
-import { ExampleHomebridgePlatform } from './platform';
+import {HomebridgeCreateCeilingFan} from './platform';
 
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
  * Each accessory may expose multiple services of different service types.
  */
-export class ExamplePlatformAccessory {
+export class CeilingFanAccessory {
   private service: Service;
 
   /**
@@ -20,7 +20,7 @@ export class ExamplePlatformAccessory {
   };
 
   constructor(
-    private readonly platform: ExampleHomebridgePlatform,
+    private readonly platform: HomebridgeCreateCeilingFan,
     private readonly accessory: PlatformAccessory,
   ) {
 
