@@ -6,4 +6,4 @@ export const PLATFORM_NAME = 'HomebridgeCreateCeilingFan';
 /**
  * This must match the name of your plugin as defined the package.json
  */
-export const PLUGIN_NAME = 'homebridge-plugin-name';
+export const PLUGIN_NAME = 'homebridge-create-ceiling-fan';
