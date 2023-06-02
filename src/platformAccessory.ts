@@ -31,9 +31,9 @@ export class CeilingFanAccessory {
       key: accessory.context.device.key,
     });
 
-
-
-    // Connect to the device
+    device.on('disconnected', () => {
+      device.find().then(() => device.connect());
+    });
 
     // Information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
@@ -58,7 +58,6 @@ export class CeilingFanAccessory {
       }
     };
     device.on('data', stateHook);
-    device.on('dp-refresh', stateHook);
 
     // Fan speed
     this.fanService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
@@ -69,13 +68,12 @@ export class CeilingFanAccessory {
       .onGet(() => this.state.fanSpeed);
     const speedHook = (data: DPSObject) => {
       if (data.dps['62']) {
-        const speed = 100 / 6 * (data.dps['62'] as number);
-        this.state.fanSpeed = speed > this.state.fanSpeed && this.state.fanSpeed > speed + 100 / 6 ? this.state.fanSpeed : speed;
+        const speed = Math.floor(6 / 100 * this.state.fanSpeed);
+        this.state.fanSpeed = data.dps['62'] as number === speed ? this.state.fanSpeed : data.dps['62'] as number * 100 / 6;
         this.fanService.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.state.fanSpeed);
       }
     };
     device.on('data', speedHook);
-    device.on('dp-refresh', speedHook);
 
     // // Fan direction
     // this.fanService.getCharacteristic(this.api.hap.Characteristic.RotationDirection)
@@ -106,7 +104,6 @@ export class CeilingFanAccessory {
       }
     };
     device.on('data', lightStateHook);
-    device.on('dp-refresh', lightStateHook);
 
     device.find().then(() => device.connect());
 
