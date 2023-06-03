@@ -53,9 +53,10 @@ export class CeilingFanAccessory {
       })
       .onGet(() => this.state.fanOn);
     const stateHook = (data: DPSObject) => {
-      if (data.dps['60'] !== undefined) {
-        this.platform.log.info('Update fan on', data.dps['60']);
-        this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
+      const isOn = data.dps['60'] as boolean | undefined;
+      if (isOn !== undefined) {
+        this.platform.log.info('Update fan on', isOn);
+        this.fanService.updateCharacteristic(this.platform.Characteristic.On, isOn);
       }
     };
     device.on('dp-refresh', stateHook);
@@ -68,14 +69,15 @@ export class CeilingFanAccessory {
     this.lightService.getCharacteristic(this.platform.Characteristic.On)
       .onSet(async (value: CharacteristicValue) => {
         this.state.lightOn = value.valueOf() as boolean;
-        await device.set({ multiple: true, data: { 20: value.valueOf() as boolean, 23: 500 } });
+        await device.set({dps: 20, set: value.valueOf() as boolean});
       })
       .onGet(() => this.state.lightOn);
 
     const lightStateHook = (data: DPSObject) => {
-      if (data.dps['20'] !== undefined) {
-        this.platform.log.info('Update light on', data.dps['20']);
-        this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
+      const isOn = data.dps['20'] as boolean | undefined;
+      if (isOn !== undefined) {
+        this.platform.log.info('Update light on', isOn);
+        this.lightService.updateCharacteristic(this.platform.Characteristic.On, isOn);
       }
     };
     device.on('dp-refresh', lightStateHook);
