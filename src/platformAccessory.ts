@@ -55,8 +55,9 @@ export class CeilingFanAccessory {
     const stateHook = (data: DPSObject) => {
       const isOn = data.dps['60'] as boolean | undefined;
       if (isOn !== undefined) {
-        this.platform.log.info('Update fan on', isOn);
-        this.fanService.updateCharacteristic(this.platform.Characteristic.On, isOn);
+        this.state.fanOn = isOn;
+        this.platform.log.info('Update fan on', this.state.fanOn);
+        this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
       }
     };
     device.on('dp-refresh', stateHook);
@@ -76,8 +77,9 @@ export class CeilingFanAccessory {
     const lightStateHook = (data: DPSObject) => {
       const isOn = data.dps['20'] as boolean | undefined;
       if (isOn !== undefined) {
-        this.platform.log.info('Update light on', isOn);
-        this.lightService.updateCharacteristic(this.platform.Characteristic.On, isOn);
+        this.state.lightOn = isOn;
+        this.platform.log.info('Update light on', this.state.lightOn);
+        this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
       }
     };
     device.on('dp-refresh', lightStateHook);
