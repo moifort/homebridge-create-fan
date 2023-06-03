@@ -32,7 +32,7 @@ export class CeilingFanAccessory {
     });
 
     device.on('disconnected', () => {
-      device.find().then(() => device.connect());
+      device.connect();
     });
 
     // Information
