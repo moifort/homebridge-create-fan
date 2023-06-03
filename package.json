@@ -2,7 +2,7 @@
   "private": false,
   "displayName": "Hombridge Create Ceiling Fan",
   "name": "homebridge-create-ceiling-fan",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "description": "Free the full potential of your ceiling fan with Homebridge",
   "license": "Apache-2.0",
   "repository": {
