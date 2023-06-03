@@ -53,7 +53,7 @@ export class CeilingFanAccessory {
       })
       .onGet(() => this.state.fanOn);
     const stateHook = (data: DPSObject) => {
-      if (data.dps['60']) {
+      if (data.dps['60'] !== undefined) {
         this.platform.log.info('Update fan on', data.dps['60']);
         this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
       }
@@ -73,7 +73,7 @@ export class CeilingFanAccessory {
       .onGet(() => this.state.lightOn);
 
     const lightStateHook = (data: DPSObject) => {
-      if (data.dps['20']) {
+      if (data.dps['20'] !== undefined) {
         this.platform.log.info('Update light on', data.dps['20']);
         this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
       }
