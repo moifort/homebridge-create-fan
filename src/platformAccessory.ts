@@ -26,15 +26,14 @@ export class CeilingFanAccessory {
     private readonly platform: HomebridgeCreateCeilingFan,
     private readonly accessory: PlatformAccessory,
   ) {
-    try {
-      const device = new TuyAPI({
-        id: accessory.context.device.id,
-        key: accessory.context.device.key,
-      });
+    const device = new TuyAPI({
+      id: accessory.context.device.id,
+      key: accessory.context.device.key,
+    });
 
-      device.on('disconnected', () => {
-        device.connect();
-      });
+    device.on('disconnected', () => {
+      device.connect();
+    });
 
       // Information
       this.accessory.getService(this.platform.Service.AccessoryInformation)!
@@ -88,10 +87,8 @@ export class CeilingFanAccessory {
 
       device.find().then(() => device.connect()).catch((e) => {
         this.platform.log.warn('Error occurred while initializing device', e);
+        this.platform.log.warn('Try again in 10 minutes', e);
         setTimeout(() => device.find().then(() => device.connect()), 1000 * 60 * 10);
       });
-    } catch (e) {
-      this.platform.log.warn('Error occurred while initializing device', e);
-    }
   }
 }
