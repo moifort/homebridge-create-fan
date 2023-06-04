@@ -85,10 +85,6 @@ export class CeilingFanAccessory {
       device.on('dp-refresh', lightStateHook);
       device.on('data', lightStateHook);
 
-      device.find().then(() => device.connect()).catch((e) => {
-        this.platform.log.warn('Error occurred while initializing device', e);
-        this.platform.log.warn('Try again in 10 minutes');
-        setTimeout(() => device.find().then(() => device.connect()), 1000 * 60 * 10);
-      });
+      device.find().then(() => device.connect());
   }
 }
