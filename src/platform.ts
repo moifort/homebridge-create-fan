@@ -86,7 +86,7 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
         try {
           new CeilingFanAccessory(this, existingAccessory);
         } catch (e) {
-          this.log.error('Error while creating accessory', e);
+          this.log.info('Error while creating accessory', e);
         }
 
         // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, eg.:
@@ -109,7 +109,7 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
         try {
           new CeilingFanAccessory(this, accessory);
         } catch (e) {
-          this.log.error('Error while creating accessory', e);
+          this.log.info('Error while creating accessory', e);
         }
 
         // link the accessory to your platform
