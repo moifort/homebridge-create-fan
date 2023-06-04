@@ -88,7 +88,7 @@ export class CeilingFanAccessory {
 
       device.find().then(() => device.connect());
     } catch (e) {
-      this.platform.log.error('Error occurred while initializing device', e);
+      this.platform.log.warn('Error occurred while initializing device', e);
     }
   }
 }
