@@ -87,7 +87,7 @@ export class CeilingFanAccessory {
 
       device.find().then(() => device.connect()).catch((e) => {
         this.platform.log.warn('Error occurred while initializing device', e);
-        this.platform.log.warn('Try again in 10 minutes', e);
+        this.platform.log.warn('Try again in 10 minutes');
         setTimeout(() => device.find().then(() => device.connect()), 1000 * 60 * 10);
       });
   }
