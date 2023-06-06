@@ -18,6 +18,7 @@ export class CeilingFanAccessory {
    */
   private state = {
     fanOn: false,
+    fanRotation: this.platform.Characteristic.RotationDirection.CLOCKWISE,
     fanSpeed: 20,
     lightOn: false,
   };
@@ -35,56 +36,76 @@ export class CeilingFanAccessory {
       device.connect();
     });
 
-      // Information
-      this.accessory.getService(this.platform.Service.AccessoryInformation)!
-        .setCharacteristic(this.platform.Characteristic.Manufacturer, 'CREATE')
-        .setCharacteristic(this.platform.Characteristic.Model, 'Ceiling Fan')
-        .setCharacteristic(this.platform.Characteristic.SerialNumber, accessory.context.device.id);
+    // Information
+    this.accessory.getService(this.platform.Service.AccessoryInformation)!
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'CREATE')
+      .setCharacteristic(this.platform.Characteristic.Model, 'Ceiling Fan')
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, accessory.context.device.id);
 
-      // Fan
-      this.fanService = this.accessory.getService(this.platform.Service.Fan) || this.accessory.addService(this.platform.Service.Fan);
-      this.fanService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
+    // Fan
+    this.fanService = this.accessory.getService(this.platform.Service.Fan) || this.accessory.addService(this.platform.Service.Fan);
+    this.fanService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
 
-      // Fan state
-      this.fanService.getCharacteristic(this.platform.Characteristic.On)
-        .onSet(async (value: CharacteristicValue) => {
-          this.state.fanOn = value.valueOf() as boolean;
-          await device.set({dps: 60, set: value.valueOf() as boolean, shouldWaitForResponse: false});
-        })
-        .onGet(() => this.state.fanOn);
-      const stateHook = (data: DPSObject) => {
-        const isOn = data.dps['60'] as boolean | undefined;
-        if (isOn !== undefined) {
-          this.state.fanOn = isOn;
-          this.platform.log.info('Update fan on', this.state.fanOn);
-          this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
-        }
-      };
-      device.on('dp-refresh', stateHook);
-      device.on('data', stateHook);
+    // Fan state
+    this.fanService.getCharacteristic(this.platform.Characteristic.On)
+      .onSet(async (value: CharacteristicValue) => {
+        this.state.fanOn = value.valueOf() as boolean;
+        await device.set({dps: 60, set: value.valueOf() as boolean, shouldWaitForResponse: false});
+      })
+      .onGet(() => this.state.fanOn);
+    const stateHook = (data: DPSObject) => {
+      const isOn = data.dps['60'] as boolean | undefined;
+      if (isOn !== undefined) {
+        this.state.fanOn = isOn;
+        this.platform.log.info('Update fan on', this.state.fanOn);
+        this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
+      }
+    };
+    device.on('dp-refresh', stateHook);
+    device.on('data', stateHook);
 
-      // Fan Light
-      this.lightService = this.accessory.getService(this.platform.Service.Lightbulb)
-        || this.accessory.addService(this.platform.Service.Lightbulb);
-      this.lightService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
-      this.lightService.getCharacteristic(this.platform.Characteristic.On)
-        .onSet(async (value: CharacteristicValue) => {
-          this.state.lightOn = value.valueOf() as boolean;
-          await device.set({dps: 20, set: value.valueOf() as boolean, shouldWaitForResponse: false});
-        })
-        .onGet(() => this.state.lightOn);
+    // Fan rotation
+    this.fanService.getCharacteristic(this.platform.Characteristic.RotationDirection)
+      .onSet(async (value: CharacteristicValue) => {
+        this.state.fanRotation = value.valueOf() as number;
+        await device.set({dps: 63, set:  this.state.fanRotation === 0 ? 'forward' : 'reverse', shouldWaitForResponse: false});
+      })
+      .onGet(() => this.state.fanRotation);
+    const rotationHook = (data: DPSObject) => {
+      const rotation = data.dps['63'] as string | undefined;
+      if (rotation !== undefined) {
+        this.state.fanRotation = rotation === 'forward'
+          ? this.platform.Characteristic.RotationDirection.CLOCKWISE
+          : this.platform.Characteristic.RotationDirection.COUNTER_CLOCKWISE;
+        this.platform.log.info('Update fan rotation', this.state.fanRotation);
+        this.fanService.updateCharacteristic(this.platform.Characteristic.RotationDirection, this.state.fanRotation);
+      }
+    };
+    device.on('dp-refresh', rotationHook);
+    device.on('data', rotationHook);
 
-      const lightStateHook = (data: DPSObject) => {
-        const isOn = data.dps['20'] as boolean | undefined;
-        if (isOn !== undefined) {
-          this.state.lightOn = isOn;
-          this.platform.log.info('Update light on', this.state.lightOn);
-          this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
-        }
-      };
-      device.on('dp-refresh', lightStateHook);
-      device.on('data', lightStateHook);
+    // Fan Light
+    this.lightService = this.accessory.getService(this.platform.Service.Lightbulb)
+      || this.accessory.addService(this.platform.Service.Lightbulb);
+    this.lightService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
+    this.lightService.getCharacteristic(this.platform.Characteristic.On)
+      .onSet(async (value: CharacteristicValue) => {
+        this.state.lightOn = value.valueOf() as boolean;
+        await device.set({dps: 20, set: value.valueOf() as boolean, shouldWaitForResponse: false});
+      })
+      .onGet(() => this.state.lightOn);
 
-      device.find().then(() => device.connect());
+    const lightStateHook = (data: DPSObject) => {
+      const isOn = data.dps['20'] as boolean | undefined;
+      if (isOn !== undefined) {
+        this.state.lightOn = isOn;
+        this.platform.log.info('Update light on', this.state.lightOn);
+        this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
+      }
+    };
+    device.on('dp-refresh', lightStateHook);
+    device.on('data', lightStateHook);
+
+    device.find().then(() => device.connect());
   }
 }
