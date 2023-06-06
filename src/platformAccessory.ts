@@ -84,6 +84,24 @@ export class CeilingFanAccessory {
     device.on('dp-refresh', rotationHook);
     device.on('data', rotationHook);
 
+    // Fan speed
+    this.fanService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
+      .onSet(async (value: CharacteristicValue) => {
+        this.state.fanSpeed = value.valueOf() as number;
+        await device.set({dps: 62, set:  this.toStep(this.state.fanSpeed), shouldWaitForResponse: false});
+      })
+      .onGet(() => this.state.fanSpeed);
+    const speedHook = (data: DPSObject) => {
+      const speed = data.dps['62'] as number | undefined;
+      if (speed !== undefined) {
+        this.state.fanSpeed = this.toPercent(this.state.fanSpeed, speed);
+        this.platform.log.info('Update fan speed', this.state.fanSpeed);
+        this.fanService.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.state.fanSpeed);
+      }
+    };
+    device.on('dp-refresh', speedHook);
+    device.on('data', speedHook);
+
     // Fan Light
     this.lightService = this.accessory.getService(this.platform.Service.Lightbulb)
       || this.accessory.addService(this.platform.Service.Lightbulb);
@@ -107,5 +125,27 @@ export class CeilingFanAccessory {
     device.on('data', lightStateHook);
 
     device.find().then(() => device.connect());
+  }
+
+  toStep(percent: number) {
+    const etapes = [1, 2, 3, 4, 5, 6];
+    const etapeIndex = Math.floor(percent / 16.67); // 100 / 6 = 16.67
+    return etapes[etapeIndex];
+  }
+
+  toPercent(initialPercentage: number, step: number) {
+    const plagesPourcentage = [0, 15, 30, 50, 65, 80, 100];
+    const plageMin = plagesPourcentage[step - 1];
+    const plageMax = plagesPourcentage[step];
+    if (initialPercentage >= plageMin && initialPercentage <= plageMax) {
+      return initialPercentage;
+    }
+    if (step === 1) {
+      return 0;
+    }
+    if (step === 6) {
+      return 100;
+    }
+    return plageMin;
   }
 }
