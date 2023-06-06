@@ -47,22 +47,22 @@ export class CeilingFanAccessory {
     this.fanService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
 
     // Fan state
-    this.fanService.getCharacteristic(this.platform.Characteristic.On)
-      .onSet(async (value: CharacteristicValue) => {
-        this.state.fanOn = value.valueOf() as boolean;
-        await device.set({dps: 60, set: value.valueOf() as boolean, shouldWaitForResponse: false});
-      })
-      .onGet(() => this.state.fanOn);
-    const stateHook = (data: DPSObject) => {
-      const isOn = data.dps['60'] as boolean | undefined;
-      if (isOn !== undefined) {
-        this.state.fanOn = isOn;
-        this.platform.log.info('Update fan on', this.state.fanOn);
-        this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
-      }
-    };
-    device.on('dp-refresh', stateHook);
-    device.on('data', stateHook);
+    // this.fanService.getCharacteristic(this.platform.Characteristic.On)
+    //   .onSet(async (value: CharacteristicValue) => {
+    //     this.state.fanOn = value.valueOf() as boolean;
+    //     await device.set({dps: 60, set: value.valueOf() as boolean, shouldWaitForResponse: false});
+    //   })
+    //   .onGet(() => this.state.fanOn);
+    // const stateHook = (data: DPSObject) => {
+    //   const isOn = data.dps['60'] as boolean | undefined;
+    //   if (isOn !== undefined) {
+    //     this.state.fanOn = isOn;
+    //     this.platform.log.info('Update fan on', this.state.fanOn);
+    //     this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
+    //   }
+    // };
+    // device.on('dp-refresh', stateHook);
+    // device.on('data', stateHook);
 
     // Fan rotation
     this.fanService.getCharacteristic(this.platform.Characteristic.RotationDirection)
@@ -89,7 +89,7 @@ export class CeilingFanAccessory {
       .onSet(async (value: CharacteristicValue) => {
         this.state.fanSpeed = value.valueOf() as number;
         if (this.state.fanSpeed === 0) {
-          return;
+          await device.set({dps: 60, set: false, shouldWaitForResponse: false});
         }
         await device.set({dps: 62, set:  this.toStep(this.state.fanSpeed), shouldWaitForResponse: false});
       })
