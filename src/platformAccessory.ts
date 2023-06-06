@@ -88,6 +88,9 @@ export class CeilingFanAccessory {
     this.fanService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
       .onSet(async (value: CharacteristicValue) => {
         this.state.fanSpeed = value.valueOf() as number;
+        if (this.state.fanSpeed === 0) {
+          return;
+        }
         await device.set({dps: 62, set:  this.toStep(this.state.fanSpeed), shouldWaitForResponse: false});
       })
       .onGet(() => this.state.fanSpeed);
