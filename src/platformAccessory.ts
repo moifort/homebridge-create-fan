@@ -157,7 +157,7 @@ export class CeilingFanAccessory {
 
   toStep(percent: number) {
     const etapes = [1, 2, 3, 4, 5, 6];
-    const etapeIndex = Math.floor(percent / 16.67); // 100 / 6 = 16.67
+    const etapeIndex = Math.floor(percent / 16.66); // 100 / 6 = 16.66
     return etapes[etapeIndex];
   }
 
