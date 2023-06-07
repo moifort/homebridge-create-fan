@@ -137,32 +137,27 @@ export class CeilingFanAccessory {
     device.on('data', lightStateHook);
 
     // Fan Light Brightness
-    this.lightService.getCharacteristic(this.platform.Characteristic.Brightness)
-      .onSet(async (value: CharacteristicValue) => {
-        this.state.lightBrightness = value.valueOf() as number;
-        if (this.state.lightBrightness === 0) {
-          await device.set({dps: 20, set: false, shouldWaitForResponse: false});
-        } else {
-          await device.set({dps: 22, set: this.state.lightBrightness * 10, shouldWaitForResponse: false});
-        }
-      })
-      .onGet(() => this.state.lightBrightness)
-      .setProps({
-        minValue: 0,
-        maxValue: 100,
-        minStep: 1,
-      });
-
-    const lightBrightnessHook = (data: DPSObject) => {
-      const brightness = data.dps['22'] as number | undefined;
-      if (brightness !== undefined) {
-        this.state.lightBrightness = brightness / 10;
-        this.platform.log.info('Update brightness', this.state.lightBrightness);
-        this.lightService.updateCharacteristic(this.platform.Characteristic.Brightness, this.state.lightBrightness);
-      }
-    };
-    device.on('dp-refresh', lightBrightnessHook);
-    device.on('data', lightBrightnessHook);
+    // this.lightService.getCharacteristic(this.platform.Characteristic.Brightness)
+    //   .onSet(async (value: CharacteristicValue) => {
+    //     this.state.lightBrightness = value.valueOf() as number;
+    //     if (this.state.lightBrightness === 0) {
+    //       await device.set({dps: 20, set: false, shouldWaitForResponse: false});
+    //     } else {
+    //       await device.set({dps: 22, set: this.state.lightBrightness * 10, shouldWaitForResponse: false});
+    //     }
+    //   })
+    //   .onGet(() => this.state.lightBrightness);
+    //
+    // const lightBrightnessHook = (data: DPSObject) => {
+    //   const brightness = data.dps['22'] as number | undefined;
+    //   if (brightness !== undefined) {
+    //     this.state.lightBrightness = brightness / 10;
+    //     this.platform.log.info('Update brightness', this.state.lightBrightness);
+    //     this.lightService.updateCharacteristic(this.platform.Characteristic.Brightness, this.state.lightBrightness);
+    //   }
+    // };
+    // device.on('dp-refresh', lightBrightnessHook);
+    // device.on('data', lightBrightnessHook);
 
     // Fan Light ColorTemperature
     this.lightService.getCharacteristic(this.platform.Characteristic.ColorTemperature)
