@@ -25,12 +25,12 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
-      // Check if the configuration contains devices
-      if (config.devices && Array.isArray(config.devices)) {
-        this.devices = config.devices;
-      } else {
-        this.log.warn('No devices specified in the configuration.');
-      }
+    // Check if the configuration contains devices
+    if (config.devices && Array.isArray(config.devices)) {
+      this.devices = config.devices;
+    } else {
+      this.log.warn('No devices specified in the configuration.');
+    }
 
     this.log.debug('Finished initializing platform:', this.config.name);
     this.api.on('didFinishLaunching', () => {
