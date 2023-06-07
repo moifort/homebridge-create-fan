@@ -8,7 +8,7 @@ Control your CREATE Ceiling Fan from HomeKit.
 - Set speed
 - Set rotation direction
 - Set light on/off
-
+- Set light brightness
 
 ![homekit-1.png](readme/homekit-1.png)
 ![homekit-2.png](readme/homekit-2.png)

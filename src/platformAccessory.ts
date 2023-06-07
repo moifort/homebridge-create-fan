@@ -174,7 +174,7 @@ export class CeilingFanAccessory {
       return initialPercentage;
     }
     if (step === 1) {
-      return 0;
+      return 10;
     }
     if (step === 6) {
       return 100;
