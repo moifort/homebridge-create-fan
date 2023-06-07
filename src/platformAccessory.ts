@@ -144,7 +144,7 @@ export class CeilingFanAccessory {
     const lightBrightnessHook = (data: DPSObject) => {
       const brightness = data.dps['22'] as number | undefined;
       if (brightness !== undefined) {
-        this.state.lightBrightness = brightness;
+        this.state.lightBrightness = brightness / 10;
         this.platform.log.info('Update brightness', this.state.lightBrightness);
         this.lightService.updateCharacteristic(this.platform.Characteristic.Brightness, this.state.lightBrightness);
       }
