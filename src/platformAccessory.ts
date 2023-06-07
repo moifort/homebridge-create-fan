@@ -142,15 +142,15 @@ export class CeilingFanAccessory {
         if (this.state.lightBrightness === 0) {
           await device.set({dps: 20, set: false, shouldWaitForResponse: false});
         } else {
-          await device.set({dps: 22, set: this.state.lightBrightness, shouldWaitForResponse: false});
+          await device.set({dps: 22, set: this.state.lightBrightness * 10, shouldWaitForResponse: false});
         }
       })
-      .onGet(() => this.state.lightBrightness).setProps({ minValue: 0, maxValue: 1000 });
+      .onGet(() => this.state.lightBrightness);
 
     const lightBrightnessHook = (data: DPSObject) => {
       const brightness = data.dps['22'] as number | undefined;
       if (brightness !== undefined) {
-        this.state.lightBrightness = brightness;
+        this.state.lightBrightness = brightness / 10;
         this.platform.log.info('Update brightness', this.state.lightBrightness);
         this.lightService.updateCharacteristic(this.platform.Characteristic.Brightness, this.state.lightBrightness);
       }
