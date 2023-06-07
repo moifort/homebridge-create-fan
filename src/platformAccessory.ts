@@ -34,14 +34,13 @@ export class CeilingFanAccessory {
       key: accessory.context.device.key,
     });
 
-    device.on('disconnected', () => {
-      device.connect();
-    });
+    device.on('disconnected', () => device.connect());
 
     // Information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, 'CREATE')
       .setCharacteristic(this.platform.Characteristic.Model, 'Ceiling Fan')
+      .setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name)
       .setCharacteristic(this.platform.Characteristic.SerialNumber, accessory.context.device.id);
 
     // Fan
@@ -53,6 +52,9 @@ export class CeilingFanAccessory {
       .onSet(async (value: CharacteristicValue) => {
         this.state.fanOn = value.valueOf() as boolean;
         await device.set({dps: 60, set: value.valueOf() as boolean, shouldWaitForResponse: false});
+        if (this.state.fanOn) {
+          device.refresh({});
+        }
       })
       .onGet(() => this.state.fanOn);
     const stateHook = (data: DPSObject) => {
@@ -116,6 +118,9 @@ export class CeilingFanAccessory {
       .onSet(async (value: CharacteristicValue) => {
         this.state.lightOn = value.valueOf() as boolean;
         await device.set({dps: 20, set: value.valueOf() as boolean, shouldWaitForResponse: false});
+        if (this.state.lightOn) {
+          device.refresh({});
+        }
       })
       .onGet(() => this.state.lightOn);
 
@@ -189,7 +194,7 @@ export class CeilingFanAccessory {
       return initialPercentage;
     }
     if (step === 1) {
-      return 0;
+      return 10;
     }
     if (step === 6) {
       return 100;
