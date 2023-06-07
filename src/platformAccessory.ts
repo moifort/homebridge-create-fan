@@ -146,7 +146,12 @@ export class CeilingFanAccessory {
           await device.set({dps: 22, set: this.state.lightBrightness * 10, shouldWaitForResponse: false});
         }
       })
-      .onGet(() => this.state.lightBrightness);
+      .onGet(() => this.state.lightBrightness)
+      .setProps({
+        minValue: 0,
+        maxValue: 100,
+        minStep: 1,
+      });
 
     const lightBrightnessHook = (data: DPSObject) => {
       const brightness = data.dps['22'] as number | undefined;
