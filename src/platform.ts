@@ -3,6 +3,12 @@ import {API, Categories, Characteristic, DynamicPlatformPlugin, Logger, Platform
 import {PLATFORM_NAME, PLUGIN_NAME} from './settings';
 import {CeilingFanAccessory} from './platformAccessory';
 
+interface DeviceConfig {
+  id: string;
+  key: string;
+  name: string;
+}
+
 /**
  * HomebridgePlatform
  * This class is the main constructor for your plugin, this is where you should
@@ -12,12 +18,20 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
   public readonly accessories: PlatformAccessory[] = [];
+  private devices: DeviceConfig[] = [];
 
   constructor(
     public readonly log: Logger,
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
+      // Check if the configuration contains devices
+      if (config.devices && Array.isArray(config.devices)) {
+        this.devices = config.devices;
+      } else {
+        this.log.warn('No devices specified in the configuration.');
+      }
+
     this.log.debug('Finished initializing platform:', this.config.name);
     this.api.on('didFinishLaunching', () => {
       log.debug('Executed didFinishLaunching callback');
@@ -31,15 +45,7 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
   }
 
   discoverDevices() {
-    const devices = [
-      {
-        id: 'bff9ec0ab7910d1763trij',
-        key: 'E{q~!S7D*+WF6DeP',
-        name: 'Ventilateur',
-      },
-    ];
-
-    for (const device of devices) {
+    for (const device of this.devices) {
       const uuid = this.api.hap.uuid.generate(device.id);
       const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
       if (existingAccessory) {
