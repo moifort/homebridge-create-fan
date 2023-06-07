@@ -10,6 +10,33 @@
         "type": "string",
         "required": true,
         "default": "Create Ceiling Fan"
+      },
+      "devices": {
+        "type": "array",
+        "title": "Devices",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "title": "ID",
+              "description": "Tuya device ID",
+              "required": true
+            },
+            "key": {
+              "type": "string",
+              "title": "Key",
+              "description": "Tuya device key",
+              "required": true
+            },
+            "name": {
+              "type": "string",
+              "title": "Device Name",
+              "description": "Name of the device",
+              "required": true
+            }
+          }
+        }
       }
     }
   }
