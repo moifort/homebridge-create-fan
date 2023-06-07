@@ -97,7 +97,8 @@ export class CeilingFanAccessory {
           await device.set({dps: 62, set:  this.toStep(this.state.fanSpeed), shouldWaitForResponse: false});
         }
       })
-      .onGet(() => this.state.fanSpeed);
+      .onGet(() => this.state.fanSpeed)
+      .setProps({});
     const speedHook = (data: DPSObject) => {
       const speed = data.dps['62'] as number | undefined;
       if (speed !== undefined) {
@@ -141,15 +142,18 @@ export class CeilingFanAccessory {
         if (this.state.lightBrightness === 0) {
           await device.set({dps: 20, set: false, shouldWaitForResponse: false});
         } else {
-          await device.set({dps: 22, set: this.state.lightBrightness * 10, shouldWaitForResponse: false});
+          await device.set({dps: 22, set: this.state.lightBrightness, shouldWaitForResponse: false});
         }
       })
-      .onGet(() => this.state.lightBrightness);
+      .onGet(() => this.state.lightBrightness).setProps({
+        minValue: 0,
+        maxValue: 10,
+      });
 
     const lightBrightnessHook = (data: DPSObject) => {
       const brightness = data.dps['22'] as number | undefined;
       if (brightness !== undefined) {
-        this.state.lightBrightness = brightness / 10;
+        this.state.lightBrightness = brightness;
         this.platform.log.info('Update brightness', this.state.lightBrightness);
         this.lightService.updateCharacteristic(this.platform.Characteristic.Brightness, this.state.lightBrightness);
       }
