@@ -22,6 +22,7 @@ export class CeilingFanAccessory {
     fanSpeed: 20,
     lightOn: false,
     lightBrightness: 60,
+    lightColorTemperature: 140,
   };
 
   constructor(
@@ -152,6 +153,25 @@ export class CeilingFanAccessory {
     device.on('dp-refresh', lightBrightnessHook);
     device.on('data', lightBrightnessHook);
 
+    // Fan Light ColorTemperature
+    this.lightService.getCharacteristic(this.platform.Characteristic.ColorTemperature)
+      .onSet(async (value: CharacteristicValue) => {
+        this.state.lightColorTemperature = value.valueOf() as number;
+        await device.set({dps: 23, set: this.convertTemperatureTuya(this.state.lightColorTemperature), shouldWaitForResponse: false});
+      })
+      .onGet(() => this.state.lightColorTemperature);
+
+    const lightColorTemperatureHook = (data: DPSObject) => {
+      const colorTemperature = data.dps['23'] as number | undefined;
+      if (colorTemperature !== undefined) {
+        this.state.lightColorTemperature = this.convertTemperatureHomeKit(colorTemperature);
+        this.platform.log.info('Update colorTemperature', this.state.lightColorTemperature);
+        this.lightService.updateCharacteristic(this.platform.Characteristic.ColorTemperature, this.state.lightColorTemperature);
+      }
+    };
+    device.on('dp-refresh', lightColorTemperatureHook);
+    device.on('data', lightColorTemperatureHook);
+
     device.find().then(() => device.connect());
   }
 
@@ -175,5 +195,30 @@ export class CeilingFanAccessory {
       return 100;
     }
     return plageMin;
+  }
+
+  convertTemperatureHomeKit(tuyaValue: number) {
+    switch (tuyaValue) {
+      case 0:
+        return 140;
+      case 500:
+        return 320;
+      case 1000:
+        return 500;
+      default:
+        return 140;
+    }
+  }
+
+  convertTemperatureTuya(homekitValue: number) {
+    if (homekitValue >= 140 && homekitValue < 230) {
+      return 0;
+    } else if (homekitValue >= 230 && homekitValue < 430) {
+      return 500;
+    } else if (homekitValue >= 430 && homekitValue <= 500) {
+      return 1000;
+    } else {
+      return 0;
+    }
   }
 }
