@@ -53,7 +53,7 @@ export class CeilingFanAccessory {
         this.state.fanOn = value.valueOf() as boolean;
         await device.set({dps: 60, set: value.valueOf() as boolean, shouldWaitForResponse: false});
         if (this.state.fanOn) {
-          device.refresh({});
+          await device.refresh({});
         }
       })
       .onGet(() => this.state.fanOn);
@@ -120,7 +120,7 @@ export class CeilingFanAccessory {
         this.state.lightOn = value.valueOf() as boolean;
         await device.set({dps: 20, set: value.valueOf() as boolean, shouldWaitForResponse: false});
         if (this.state.lightOn) {
-          device.refresh({});
+          await device.refresh({});
         }
       })
       .onGet(() => this.state.lightOn);
