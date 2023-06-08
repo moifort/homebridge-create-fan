@@ -42,8 +42,8 @@ export class CeilingFanAccessory {
     this.fanService.getCharacteristic(this.platform.Characteristic.On)
       .onSet(async (value: CharacteristicValue) => {
         this.state.fanOn = value.valueOf() as boolean;
-        await device.set({dps: 60, set: value.valueOf() as boolean, shouldWaitForResponse: false});
-        await device.refresh({requestedDPS: [62]});
+        await device.set({dps: 60, set: value.valueOf() as boolean});
+        await device.get({});
       })
       .onGet(() => this.state.fanOn);
     const stateHook = (data: DPSObject) => {
@@ -107,8 +107,8 @@ export class CeilingFanAccessory {
     this.lightService.getCharacteristic(this.platform.Characteristic.On)
       .onSet(async (value: CharacteristicValue) => {
         this.state.lightOn = value.valueOf() as boolean;
-        await device.set({dps: 20, set: value.valueOf() as boolean, shouldWaitForResponse: false});
-        await device.refresh({});
+        await device.set({dps: 20, set: value.valueOf() as boolean});
+        await device.get({});
       })
       .onGet(() => this.state.lightOn);
 
