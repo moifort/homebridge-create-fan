@@ -23,7 +23,6 @@ export class CeilingFanAccessory {
     const device = new TuyAPI({
       id: accessory.context.device.id,
       key: accessory.context.device.key,
-      issueGetOnConnect: true,
     });
 
     device.on('disconnected', () => device.connect());
@@ -43,13 +42,12 @@ export class CeilingFanAccessory {
     this.fanService.getCharacteristic(this.platform.Characteristic.On)
       .onSet(async (value: CharacteristicValue) => {
         this.state.fanOn = value.valueOf() as boolean;
-        await device.set({dps: 60, set: value.valueOf() as boolean});
-        await device.get({});
+        await device.set({dps: 60, set: value.valueOf() as boolean, shouldWaitForResponse: false});
       })
       .onGet(() => this.state.fanOn);
     const stateHook = (data: DPSObject) => {
       const isOn = data.dps['60'] as boolean | undefined;
-      if (isOn !== undefined && isOn !== this.state.fanOn) {
+      if (isOn !== undefined) {
         this.state.fanOn = isOn;
         this.platform.log.info('Update fan on', this.state.fanOn);
         this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
@@ -67,7 +65,7 @@ export class CeilingFanAccessory {
       .onGet(() => this.state.fanRotation);
     const rotationHook = (data: DPSObject) => {
       const rotation = data.dps['63'] as string | undefined;
-      if (rotation !== undefined && rotation !== (this.state.fanRotation === 0 ? 'forward' : 'reverse')) {
+      if (rotation !== undefined) {
         this.state.fanRotation = rotation === 'forward'
           ? this.platform.Characteristic.RotationDirection.CLOCKWISE
           : this.platform.Characteristic.RotationDirection.COUNTER_CLOCKWISE;
@@ -92,7 +90,7 @@ export class CeilingFanAccessory {
       .setProps({});
     const speedHook = (data: DPSObject) => {
       const speed = data.dps['62'] as number | undefined;
-      if (speed !== undefined && this.toPercent(this.state.fanSpeed, speed) !== this.state.fanSpeed) {
+      if (speed !== undefined) {
         this.state.fanSpeed = this.toPercent(this.state.fanSpeed, speed);
         this.platform.log.info('Update fan speed', this.state.fanSpeed);
         this.fanService.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.state.fanSpeed);
@@ -108,13 +106,14 @@ export class CeilingFanAccessory {
     this.lightService.getCharacteristic(this.platform.Characteristic.On)
       .onSet(async (value: CharacteristicValue) => {
         this.state.lightOn = value.valueOf() as boolean;
-        await device.set({dps: 20, set: value.valueOf() as boolean});
+        await device.set({dps: 20, set: value.valueOf() as boolean, shouldWaitForResponse: false});
+        await device.refresh({});
       })
       .onGet(() => this.state.lightOn);
 
     const lightStateHook = (data: DPSObject) => {
       const isOn = data.dps['20'] as boolean | undefined;
-      if (isOn !== undefined && isOn !== this.state.lightOn) {
+      if (isOn !== undefined) {
         this.state.lightOn = isOn;
         this.platform.log.info('Update light on', this.state.lightOn);
         this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
@@ -137,7 +136,7 @@ export class CeilingFanAccessory {
 
     const lightBrightnessHook = (data: DPSObject) => {
       const brightness = data.dps['22'] as number | undefined;
-      if (brightness !== undefined && brightness !== this.state.lightBrightness / 10) {
+      if (brightness !== undefined) {
         this.state.lightBrightness = brightness / 10;
         this.platform.log.info('Update brightness', this.state.lightBrightness);
         this.lightService.updateCharacteristic(this.platform.Characteristic.Brightness, this.state.lightBrightness);
