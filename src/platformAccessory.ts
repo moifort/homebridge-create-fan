@@ -52,9 +52,6 @@ export class CeilingFanAccessory {
       .onSet(async (value: CharacteristicValue) => {
         this.state.fanOn = value.valueOf() as boolean;
         await device.set({dps: 60, set: value.valueOf() as boolean, shouldWaitForResponse: false});
-        if (this.state.fanOn) {
-          await device.refresh({});
-        }
       })
       .onGet(() => this.state.fanOn);
     const stateHook = (data: DPSObject) => {
@@ -91,10 +88,10 @@ export class CeilingFanAccessory {
     // Fan speed
     this.fanService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
       .onSet(async (value: CharacteristicValue) => {
-        this.state.fanSpeed = value.valueOf() as number;
-        if (this.state.fanSpeed === 0) {
+        if (value.valueOf() === 0) {
           await device.set({dps: 60, set: false, shouldWaitForResponse: false});
         } else {
+          this.state.fanSpeed = value.valueOf() as number;
           await device.set({dps: 62, set:  this.toStep(this.state.fanSpeed), shouldWaitForResponse: false});
         }
       })
@@ -119,9 +116,6 @@ export class CeilingFanAccessory {
       .onSet(async (value: CharacteristicValue) => {
         this.state.lightOn = value.valueOf() as boolean;
         await device.set({dps: 20, set: value.valueOf() as boolean, shouldWaitForResponse: false});
-        if (this.state.lightOn) {
-          await device.refresh({});
-        }
       })
       .onGet(() => this.state.lightOn);
 
@@ -139,10 +133,10 @@ export class CeilingFanAccessory {
     // Fan Light Brightness
     this.lightService.getCharacteristic(this.platform.Characteristic.Brightness)
       .onSet(async (value: CharacteristicValue) => {
-        this.state.lightBrightness = value.valueOf() as number;
-        if (this.state.lightBrightness === 0) {
+        if (value.valueOf() === 0) {
           await device.set({dps: 20, set: false, shouldWaitForResponse: false});
         } else {
+          this.state.lightBrightness = value.valueOf() as number;
           await device.set({dps: 22, set: this.state.lightBrightness * 10, shouldWaitForResponse: false});
         }
       })
