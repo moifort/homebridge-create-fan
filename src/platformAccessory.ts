@@ -23,6 +23,7 @@ export class CeilingFanAccessory {
     const device = new TuyAPI({
       id: accessory.context.device.id,
       key: accessory.context.device.key,
+      issueGetOnConnect: true,
     });
 
     device.on('disconnected', () => device.connect());
@@ -108,7 +109,6 @@ export class CeilingFanAccessory {
       .onSet(async (value: CharacteristicValue) => {
         this.state.lightOn = value.valueOf() as boolean;
         await device.set({dps: 20, set: value.valueOf() as boolean});
-        await device.get({});
       })
       .onGet(() => this.state.lightOn);
 
