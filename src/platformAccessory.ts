@@ -3,19 +3,10 @@ import {CharacteristicValue, PlatformAccessory, Service} from 'homebridge';
 import {HomebridgeCreateCeilingFan} from './platform';
 import TuyAPI, {DPSObject} from 'tuyapi';
 
-/**
- * Platform Accessory
- * An instance of this class is created for each accessory your platform registers
- * Each accessory may expose multiple services of different fanService types.
- */
 export class CeilingFanAccessory {
   private fanService!: Service;
   private lightService!: Service;
 
-  /**
-   * These are just used to create a working example
-   * You should implement your own code to track the state of your accessory
-   */
   private state = {
     fanOn: false,
     fanRotation: this.platform.Characteristic.RotationDirection.CLOCKWISE,
@@ -52,7 +43,7 @@ export class CeilingFanAccessory {
       .onSet(async (value: CharacteristicValue) => {
         this.state.fanOn = value.valueOf() as boolean;
         await device.set({dps: 60, set: value.valueOf() as boolean, shouldWaitForResponse: false});
-        await device.refresh({});
+        await device.refresh({requestedDPS: [62]});
       })
       .onGet(() => this.state.fanOn);
     const stateHook = (data: DPSObject) => {
