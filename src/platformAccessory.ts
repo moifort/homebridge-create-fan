@@ -59,7 +59,7 @@ export class CeilingFanAccessory {
       const isOn = data.dps['60'] as boolean | undefined;
       if (isOn !== undefined) {
         this.state.fanOn = isOn;
-        this.platform.log.info('Update fan on', this.state.fanOn);
+        this.accessory.log.info('Update fan on', this.state.fanOn);
         this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
       }
     };
@@ -79,7 +79,7 @@ export class CeilingFanAccessory {
         this.state.fanRotation = rotation === 'forward'
           ? this.platform.Characteristic.RotationDirection.CLOCKWISE
           : this.platform.Characteristic.RotationDirection.COUNTER_CLOCKWISE;
-        this.platform.log.info('Update fan rotation', this.state.fanRotation);
+        this.accessory.log.info('Update fan rotation', this.state.fanRotation);
         this.fanService.updateCharacteristic(this.platform.Characteristic.RotationDirection, this.state.fanRotation);
       }
     };
@@ -102,7 +102,7 @@ export class CeilingFanAccessory {
       const speed = data.dps['62'] as number | undefined;
       if (speed !== undefined) {
         this.state.fanSpeed = this.toPercent(this.state.fanSpeed, speed);
-        this.platform.log.info('Update fan speed', this.state.fanSpeed);
+        this.accessory.log.info('Update fan speed', this.state.fanSpeed);
         this.fanService.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.state.fanSpeed);
       }
     };
@@ -125,7 +125,7 @@ export class CeilingFanAccessory {
       const isOn = data.dps['20'] as boolean | undefined;
       if (isOn !== undefined) {
         this.state.lightOn = isOn;
-        this.platform.log.info('Update light on', this.state.lightOn);
+        this.accessory.log.info('Update light on', this.state.lightOn);
         this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
       }
     };
@@ -148,7 +148,7 @@ export class CeilingFanAccessory {
       const brightness = data.dps['22'] as number | undefined;
       if (brightness !== undefined) {
         this.state.lightBrightness = brightness / 10;
-        this.platform.log.info('Update brightness', this.state.lightBrightness);
+        this.accessory.log.info('Update brightness', this.state.lightBrightness);
         this.lightService.updateCharacteristic(this.platform.Characteristic.Brightness, this.state.lightBrightness);
       }
     };
@@ -167,7 +167,7 @@ export class CeilingFanAccessory {
     //   const colorTemperature = data.dps['23'] as number | undefined;
     //   if (colorTemperature !== undefined) {
     //     this.state.lightColorTemperature = this.convertTemperatureHomeKit(colorTemperature);
-    //     this.platform.log.info('Update colorTemperature', this.state.lightColorTemperature);
+    //     this.accessory.log.info('Update colorTemperature', this.state.lightColorTemperature);
     //     this.lightService.updateCharacteristic(this.platform.Characteristic.ColorTemperature, this.state.lightColorTemperature);
     //   }
     // };
