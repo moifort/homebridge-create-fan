@@ -27,6 +27,7 @@ export class CeilingFanAccessory {
 
     device.on('disconnected', () => device.connect());
 
+
     // Information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, 'CREATE')
@@ -164,7 +165,16 @@ export class CeilingFanAccessory {
     // device.on('dp-refresh', lightColorTemperatureHook);
     // device.on('data', lightColorTemperatureHook);
 
-    device.find().then(() => device.connect());
+    device.find().then(async () => {
+      await device.connect();
+      setTimeout(() => {
+        if (!device.isConnected()) {
+          this.platform.log.info('Device not connected, connecting again...');
+          device.connect();
+          return;
+        }
+      }, 10 * 60 * 1000);
+    });
   }
 
   toStep(percent: number) {
