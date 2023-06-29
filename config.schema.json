@@ -34,6 +34,12 @@
               "title": "Device Name",
               "description": "Name of the device",
               "required": true
+            },
+            "hasLight": {
+              "type": "boolean",
+              "title": "Has Light",
+              "description": "Device has a light ?",
+              "required": true
             }
           }
         }

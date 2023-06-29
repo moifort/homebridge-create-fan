@@ -100,51 +100,55 @@ export class CeilingFanAccessory {
     device.on('dp-refresh', speedHook);
     device.on('data', speedHook);
 
-    // Fan Light
-    this.lightService = this.accessory.getService(this.platform.Service.Lightbulb)
-      || this.accessory.addService(this.platform.Service.Lightbulb);
-    this.lightService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
-    this.lightService.getCharacteristic(this.platform.Characteristic.On)
-      .onSet(async (value: CharacteristicValue) => {
-        this.state.lightOn = value.valueOf() as boolean;
-        await device.set({dps: 20, set: value.valueOf() as boolean, shouldWaitForResponse: false});
-        await device.refresh({});
-      })
-      .onGet(() => this.state.lightOn);
+    if (accessory.context.device.hasLight || true) {
+      // Fan Light
+      this.lightService = this.accessory.getService(this.platform.Service.Lightbulb)
+        || this.accessory.addService(this.platform.Service.Lightbulb);
+      this.lightService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
+      this.lightService.getCharacteristic(this.platform.Characteristic.On)
+        .onSet(async (value: CharacteristicValue) => {
+          this.state.lightOn = value.valueOf() as boolean;
+          await device.set({dps: 20, set: value.valueOf() as boolean, shouldWaitForResponse: false});
+          await device.refresh({});
+        })
+        .onGet(() => this.state.lightOn);
 
-    const lightStateHook = (data: DPSObject) => {
-      const isOn = data.dps['20'] as boolean | undefined;
-      if (isOn !== undefined) {
-        this.state.lightOn = isOn;
-        this.platform.log.info('Update light on', this.state.lightOn);
-        this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
-      }
-    };
-    device.on('dp-refresh', lightStateHook);
-    device.on('data', lightStateHook);
-
-    // Fan Light Brightness
-    this.lightService.getCharacteristic(this.platform.Characteristic.Brightness)
-      .onSet(async (value: CharacteristicValue) => {
-        if (value.valueOf() === 0) {
-          await device.set({dps: 20, set: false, shouldWaitForResponse: false});
-        } else {
-          this.state.lightBrightness = value.valueOf() as number;
-          await device.set({dps: 22, set: this.state.lightBrightness * 10, shouldWaitForResponse: false});
+      const lightStateHook = (data: DPSObject) => {
+        const isOn = data.dps['20'] as boolean | undefined;
+        if (isOn !== undefined) {
+          this.state.lightOn = isOn;
+          this.platform.log.info('Update light on', this.state.lightOn);
+          this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
         }
-      })
-      .onGet(() => this.state.lightBrightness);
+      };
+      device.on('dp-refresh', lightStateHook);
+      device.on('data', lightStateHook);
 
-    const lightBrightnessHook = (data: DPSObject) => {
-      const brightness = data.dps['22'] as number | undefined;
-      if (brightness !== undefined) {
-        this.state.lightBrightness = brightness / 10;
-        this.platform.log.info('Update brightness', this.state.lightBrightness);
-        this.lightService.updateCharacteristic(this.platform.Characteristic.Brightness, this.state.lightBrightness);
-      }
-    };
-    device.on('dp-refresh', lightBrightnessHook);
-    device.on('data', lightBrightnessHook);
+      // Fan Light Brightness
+      this.lightService.getCharacteristic(this.platform.Characteristic.Brightness)
+        .onSet(async (value: CharacteristicValue) => {
+          if (value.valueOf() === 0) {
+            await device.set({dps: 20, set: false, shouldWaitForResponse: false});
+          } else {
+            this.state.lightBrightness = value.valueOf() as number;
+            await device.set({dps: 22, set: this.state.lightBrightness * 10, shouldWaitForResponse: false});
+          }
+        })
+        .onGet(() => this.state.lightBrightness);
+
+      const lightBrightnessHook = (data: DPSObject) => {
+        const brightness = data.dps['22'] as number | undefined;
+        if (brightness !== undefined) {
+          this.state.lightBrightness = brightness / 10;
+          this.platform.log.info('Update brightness', this.state.lightBrightness);
+          this.lightService.updateCharacteristic(this.platform.Characteristic.Brightness, this.state.lightBrightness);
+        }
+      };
+      device.on('dp-refresh', lightBrightnessHook);
+      device.on('data', lightBrightnessHook);
+    }
+
+
 
     // Fan Light ColorTemperature
     // this.lightService.getCharacteristic(this.platform.Characteristic.ColorTemperature)
@@ -167,13 +171,14 @@ export class CeilingFanAccessory {
 
     device.find().then(async () => {
       await device.connect();
-      setTimeout(() => {
+      setTimeout(async () => {
         if (!device.isConnected()) {
           this.platform.log.info('Device not connected, connecting again...');
-          device.connect();
+          await device.find();
+          await device.connect();
           return;
         }
-      }, 10 * 60 * 1000);
+      }, 2 * 60 * 60 * 1000);
     });
   }
 
