@@ -7,6 +7,7 @@ interface DeviceConfig {
   id: string;
   key: string;
   name: string;
+  hasLight: boolean;
 }
 
 /**
@@ -52,7 +53,7 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
         this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
         new CeilingFanAccessory(this, existingAccessory);
       } else {
-        this.log.info('Adding new ceiling fan:', device.id, device.name);
+        this.log.info('Adding new ceiling fan:', device.id, device.name, device.hasLight);
         const accessory = new this.api.platformAccessory(device.name, uuid, Categories.FAN);
         accessory.context.device = device;
         new CeilingFanAccessory(this, accessory);

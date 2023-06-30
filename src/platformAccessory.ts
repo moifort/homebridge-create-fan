@@ -25,6 +25,7 @@ export class CeilingFanAccessory {
       key: accessory.context.device.key,
     });
 
+
     device.on('disconnected', () => device.connect());
 
 
@@ -100,7 +101,6 @@ export class CeilingFanAccessory {
     device.on('dp-refresh', speedHook);
     device.on('data', speedHook);
 
-    // eslint-disable-next-line no-constant-condition
     if (accessory.context.device.hasLight) {
       // Fan Light
       this.lightService = this.accessory.getService(this.platform.Service.Lightbulb)
@@ -147,28 +147,28 @@ export class CeilingFanAccessory {
       };
       device.on('dp-refresh', lightBrightnessHook);
       device.on('data', lightBrightnessHook);
+
+
+      // Fan Light ColorTemperature
+      // this.lightService.getCharacteristic(this.platform.Characteristic.ColorTemperature)
+      //   .onSet(async (value: CharacteristicValue) => {
+      //     this.state.lightColorTemperature = value.valueOf() as number;
+      //     await device.set({dps: 23, set: this.convertTemperatureTuya(this.state.lightColorTemperature), shouldWaitForResponse: false});
+      //   })
+      //   .onGet(() => this.state.lightColorTemperature);
+      //
+      // const lightColorTemperatureHook = (data: DPSObject) => {
+      //   const colorTemperature = data.dps['23'] as number | undefined;
+      //   if (colorTemperature !== undefined) {
+      //     this.state.lightColorTemperature = this.convertTemperatureHomeKit(colorTemperature);
+      //     this.platform.log.info('Update colorTemperature', this.state.lightColorTemperature);
+      //     this.lightService.updateCharacteristic(this.platform.Characteristic.ColorTemperature, this.state.lightColorTemperature);
+      //   }
+      // };
+      // device.on('dp-refresh', lightColorTemperatureHook);
+      // device.on('data', lightColorTemperatureHook);
     }
 
-
-
-    // Fan Light ColorTemperature
-    // this.lightService.getCharacteristic(this.platform.Characteristic.ColorTemperature)
-    //   .onSet(async (value: CharacteristicValue) => {
-    //     this.state.lightColorTemperature = value.valueOf() as number;
-    //     await device.set({dps: 23, set: this.convertTemperatureTuya(this.state.lightColorTemperature), shouldWaitForResponse: false});
-    //   })
-    //   .onGet(() => this.state.lightColorTemperature);
-    //
-    // const lightColorTemperatureHook = (data: DPSObject) => {
-    //   const colorTemperature = data.dps['23'] as number | undefined;
-    //   if (colorTemperature !== undefined) {
-    //     this.state.lightColorTemperature = this.convertTemperatureHomeKit(colorTemperature);
-    //     this.platform.log.info('Update colorTemperature', this.state.lightColorTemperature);
-    //     this.lightService.updateCharacteristic(this.platform.Characteristic.ColorTemperature, this.state.lightColorTemperature);
-    //   }
-    // };
-    // device.on('dp-refresh', lightColorTemperatureHook);
-    // device.on('data', lightColorTemperatureHook);
 
     device.find().then(async () => {
       await device.connect();
