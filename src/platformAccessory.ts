@@ -101,7 +101,7 @@ export class CeilingFanAccessory {
     device.on('data', speedHook);
 
     // eslint-disable-next-line no-constant-condition
-    if (accessory.context.device.hasLight || true) {
+    if (accessory.context.device.hasLight) {
       // Fan Light
       this.lightService = this.accessory.getService(this.platform.Service.Lightbulb)
         || this.accessory.addService(this.platform.Service.Lightbulb);
