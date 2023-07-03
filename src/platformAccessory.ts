@@ -1,7 +1,8 @@
 import {CharacteristicValue, PlatformAccessory, Service} from 'homebridge';
 
 import {HomebridgeCreateCeilingFan} from './platform';
-import TuyAPI, {DPSObject} from 'tuyapi';
+import TuyAPI from 'tuyapi';
+import TuyaDevice, {DPSObject} from 'tuyapi';
 
 export class CeilingFanAccessory {
   private fanService!: Service;
@@ -23,10 +24,12 @@ export class CeilingFanAccessory {
     const device = new TuyAPI({
       id: accessory.context.device.id,
       key: accessory.context.device.key,
+      version: '3.3',
+      issueRefreshOnConnect: true,
     });
 
 
-    device.on('disconnected', () => device.connect());
+    device.on('disconnected', () => this.connect(device));
 
 
     // Information
@@ -168,20 +171,17 @@ export class CeilingFanAccessory {
       // device.on('dp-refresh', lightColorTemperatureHook);
       // device.on('data', lightColorTemperatureHook);
     }
-
-
-    device.find().then(async () => {
-      await device.connect();
-      setTimeout(async () => {
-        if (!device.isConnected()) {
-          this.platform.log.info('Device not connected, connecting again...');
-          await device.find();
-          await device.connect();
-          return;
-        }
-      }, 2 * 60 * 60 * 1000);
-    });
+    this.connect(device);
   }
+
+  async connect(device: TuyaDevice) {
+    this.platform.log.info('Connecting...');
+    await device.find();
+    await device.connect();
+    this.platform.log.info('Connected');
+
+  }
+
 
   toStep(percent: number) {
     const etapes = [1, 2, 3, 4, 5, 6];
