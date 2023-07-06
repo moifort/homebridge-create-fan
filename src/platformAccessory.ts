@@ -175,11 +175,16 @@ export class CeilingFanAccessory {
   }
 
   async connect(device: TuyaDevice) {
-    this.platform.log.info('Connecting...');
-    await device.find();
-    await device.connect();
-    this.platform.log.info('Connected');
-
+    try {
+      this.platform.log.info('Connecting...');
+      await device.find();
+      await device.connect();
+      this.platform.log.info('Connected');
+    } catch (e) {
+      this.platform.log.info('Connection failed', e);
+      this.platform.log.info('Retry in 1 minute');
+      setTimeout(() => this.connect(device), 60000);
+    }
   }
 
 
