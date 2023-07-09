@@ -47,8 +47,8 @@ export class CeilingFanAccessory {
     this.fanService.getCharacteristic(this.platform.Characteristic.On)
       .onSet(async (value: CharacteristicValue) => {
         const receivedValue = value.valueOf() as boolean;
-        // If we receive the switch on the fan and its already on, we turn off the light (to manage single action switch)
-        // 1 click = fan on, 1 click again = light off
+        // If we receive the switch on the fan and its already on, we turn off the fan (to manage single action switch)
+        // 1 click = fan on, 1 click again = fan off
         this.state.fanOn = this.state.fanOn && receivedValue ? false : receivedValue;
         await device.set({dps: 60, set: this.state.fanOn, shouldWaitForResponse: false});
       })
