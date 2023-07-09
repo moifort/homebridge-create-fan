@@ -46,8 +46,11 @@ export class CeilingFanAccessory {
     // Fan state
     this.fanService.getCharacteristic(this.platform.Characteristic.On)
       .onSet(async (value: CharacteristicValue) => {
-        this.state.fanOn = value.valueOf() as boolean;
-        await device.set({dps: 60, set: value.valueOf() as boolean, shouldWaitForResponse: false});
+        const receivedValue = value.valueOf() as boolean;
+        // If we receive the switch on the fan and its already on, we turn off the light (to manage single action switch)
+        // 1 click = fan on, 1 click again = light off
+        this.state.fanOn = this.state.fanOn && receivedValue ? false : receivedValue;
+        await device.set({dps: 60, set: this.state.fanOn, shouldWaitForResponse: false});
       })
       .onGet(() => this.state.fanOn);
     const stateHook = (data: DPSObject) => {
@@ -111,8 +114,11 @@ export class CeilingFanAccessory {
       this.lightService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
       this.lightService.getCharacteristic(this.platform.Characteristic.On)
         .onSet(async (value: CharacteristicValue) => {
-          this.state.lightOn = value.valueOf() as boolean;
-          await device.set({dps: 20, set: value.valueOf() as boolean, shouldWaitForResponse: false});
+          const receivedValue = value.valueOf() as boolean;
+          // If we receive the switch on the fan, we need to turn off the light (to manage single action switch)
+          // 1 click = fan on, 1 click again = light off
+          this.state.lightOn = this.state.lightOn && receivedValue ? false : receivedValue;
+          await device.set({dps: 20, set: this.state.lightOn, shouldWaitForResponse: false});
           await device.refresh({});
         })
         .onGet(() => this.state.lightOn);
