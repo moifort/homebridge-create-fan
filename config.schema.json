@@ -40,6 +40,12 @@
               "title": "Has Light",
               "description": "Device has a light ?",
               "required": true
+            },
+            "withToggle": {
+              "type": "boolean",
+              "title": "Add toggle switch for light and fan",
+              "description": "Check true if you have a toggle switch (switch with 1 click)",
+              "required": false
             }
           }
         }

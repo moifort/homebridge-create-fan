@@ -8,6 +8,7 @@ interface DeviceConfig {
   key: string;
   name: string;
   hasLight: boolean;
+  withToggle: boolean;
 }
 
 /**

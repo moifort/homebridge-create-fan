@@ -171,6 +171,31 @@ export class CeilingFanAccessory {
       // device.on('dp-refresh', lightColorTemperatureHook);
       // device.on('data', lightColorTemperatureHook);
     }
+
+    if (accessory.context.device.withToggle) {
+      if (accessory.context.device.hasLight) {
+        this.accessory.getService(this.platform.Service.Switch)!
+          .setCharacteristic(this.platform.Characteristic.Name, 'Light')
+          .getCharacteristic(this.platform.Characteristic.On)
+          .onSet(async (value: CharacteristicValue) => {
+            const receivedValue = value.valueOf() as boolean;
+            this.state.lightOn = this.state.lightOn && receivedValue ? false : receivedValue;
+            await device.set({dps: 20, set: this.state.lightOn, shouldWaitForResponse: false});
+          })
+          .onGet(() => this.state.lightOn);
+      }
+
+      this.accessory.getService(this.platform.Service.Switch)!
+        .setCharacteristic(this.platform.Characteristic.Name, 'Fan')
+        .getCharacteristic(this.platform.Characteristic.On)
+        .onSet(async (value: CharacteristicValue) => {
+          const receivedValue = value.valueOf() as boolean;
+          this.state.fanOn = this.state.fanOn && receivedValue ? false : receivedValue;
+          await device.set({dps: 60, set: this.state.fanOn as boolean, shouldWaitForResponse: false});
+        })
+        .onGet(() => this.state.fanOn);
+    }
+
     this.connect(device);
   }
 
