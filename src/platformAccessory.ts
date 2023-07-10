@@ -8,6 +8,7 @@ export class CeilingFanAccessory {
   private fanService!: Service;
   private lightService!: Service;
   private lightToggleService!: Service;
+  private fanToggleService!: Service;
 
   private state = {
     fanOn: false,
@@ -43,6 +44,20 @@ export class CeilingFanAccessory {
     // Fan
     this.fanService = this.accessory.getService(this.platform.Service.Fan) || this.accessory.addService(this.platform.Service.Fan);
     this.fanService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
+
+    if(accessory.context.device.withToggle) {
+      this.fanToggleService = this.accessory.getService(this.platform.Service.Switch)
+        || this.accessory.addService(this.platform.Service.Switch);
+      this.fanToggleService
+        .setCharacteristic(this.platform.Characteristic.Name, 'Fan toggle')
+        .getCharacteristic(this.platform.Characteristic.On)
+        .onSet(async (value: CharacteristicValue) => {
+          const receivedValue = value.valueOf() as boolean;
+          this.state.fanOn = this.state.fanOn && receivedValue ? false : receivedValue;
+          await device.set({dps: 60, set: this.state.fanOn as boolean, shouldWaitForResponse: false});
+        })
+        .onGet(() => this.state.fanOn);
+    }
 
     // Fan state
     this.fanService.getCharacteristic(this.platform.Characteristic.On)
