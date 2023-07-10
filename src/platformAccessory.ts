@@ -46,8 +46,8 @@ export class CeilingFanAccessory {
     this.fanService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
 
     if(accessory.context.device.withToggle) {
-      this.fanToggleService = this.accessory.getService(this.platform.Service.Switch)
-        || this.accessory.addService(this.platform.Service.Switch);
+      this.fanToggleService = this.accessory.getService(this.platform.Service.Outlet)
+        || this.accessory.addService(this.platform.Service.Outlet);
       this.fanToggleService
         .setCharacteristic(this.platform.Characteristic.Name, 'Fan toggle')
         .getCharacteristic(this.platform.Characteristic.On)
