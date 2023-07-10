@@ -175,7 +175,7 @@ export class CeilingFanAccessory {
     if (accessory.context.device.withToggle) {
       if (accessory.context.device.hasLight) {
         this.accessory.getService(this.platform.Service.Switch)!
-          .setCharacteristic(this.platform.Characteristic.Name, 'Light')
+          .setCharacteristic(this.platform.Characteristic.Name, 'Light toggle')
           .getCharacteristic(this.platform.Characteristic.On)
           .onSet(async (value: CharacteristicValue) => {
             const receivedValue = value.valueOf() as boolean;
@@ -186,7 +186,7 @@ export class CeilingFanAccessory {
       }
 
       this.accessory.getService(this.platform.Service.Switch)!
-        .setCharacteristic(this.platform.Characteristic.Name, 'Fan')
+        .setCharacteristic(this.platform.Characteristic.Name, 'Fan toggle')
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet(async (value: CharacteristicValue) => {
           const receivedValue = value.valueOf() as boolean;
