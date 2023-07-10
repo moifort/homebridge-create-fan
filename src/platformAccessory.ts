@@ -174,7 +174,7 @@ export class CeilingFanAccessory {
 
     if (accessory.context.device.withToggle) {
       if (accessory.context.device.hasLight) {
-        this.accessory.getService(this.platform.Service.Switch)!
+        (this.accessory.getService(this.platform.Service.Switch) || this.accessory.addService(this.platform.Service.Switch))
           .setCharacteristic(this.platform.Characteristic.Name, 'Light toggle')
           .getCharacteristic(this.platform.Characteristic.On)
           .onSet(async (value: CharacteristicValue) => {
@@ -185,7 +185,7 @@ export class CeilingFanAccessory {
           .onGet(() => this.state.lightOn);
       }
 
-      this.accessory.getService(this.platform.Service.Switch)!
+      (this.accessory.getService(this.platform.Service.Switch) || this.accessory.addService(this.platform.Service.Switch))
         .setCharacteristic(this.platform.Characteristic.Name, 'Fan toggle')
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet(async (value: CharacteristicValue) => {
