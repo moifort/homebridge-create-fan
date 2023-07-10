@@ -2,7 +2,6 @@ import {API, Categories, Characteristic, DynamicPlatformPlugin, Logger, Platform
 
 import {PLATFORM_NAME, PLUGIN_NAME} from './settings';
 import {CeilingFanAccessory} from './platformAccessory';
-import {ToggleCeilingFanAccessory} from './platformOptionalAccessory';
 
 interface DeviceConfig {
   id: string;
@@ -53,21 +52,22 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
       const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
       if (existingAccessory) {
         this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
-        existingAccessory.UUID.startsWith('toggle')
-          ? new ToggleCeilingFanAccessory(this, existingAccessory)
-          : new CeilingFanAccessory(this, existingAccessory);
+        new CeilingFanAccessory(this, existingAccessory);
+        // existingAccessory.UUID.startsWith('toggle')
+        //   ? new ToggleCeilingFanAccessory(this, existingAccessory)
+        //   : new CeilingFanAccessory(this, existingAccessory);
       } else {
         this.log.info('Adding new ceiling fan:', device.id, device.name, device.hasLight);
         const accessory = new this.api.platformAccessory(device.name, uuid, Categories.FAN);
         accessory.context.device = device;
         new CeilingFanAccessory(this, accessory);
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-        if (device.withToggle) {
-          const toggleAccessory = new this.api.platformAccessory(`Toggle ${device.name}`, `toggle-${uuid}`, Categories.FAN);
-          toggleAccessory.context.device = device;
-          new ToggleCeilingFanAccessory(this, toggleAccessory);
-          this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [toggleAccessory]);
-        }
+        // if (device.withToggle) {
+        //   const toggleAccessory = new this.api.platformAccessory(`Toggle ${device.name}`, `toggle-${uuid}`, Categories.FAN);
+        //   toggleAccessory.context.device = device;
+        //   new ToggleCeilingFanAccessory(this, toggleAccessory);
+        //   this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [toggleAccessory]);
+        // }
       }
     }
   }

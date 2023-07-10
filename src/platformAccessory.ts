@@ -7,6 +7,7 @@ import TuyaDevice, {DPSObject} from 'tuyapi';
 export class CeilingFanAccessory {
   private fanService!: Service;
   private lightService!: Service;
+  private lightToggleService!: Service;
 
   private state = {
     fanOn: false,
@@ -105,6 +106,21 @@ export class CeilingFanAccessory {
     device.on('data', speedHook);
 
     if (accessory.context.device.hasLight) {
+
+      if(accessory.context.device.withToggle) {
+        this.lightToggleService = this.accessory.getService(this.platform.Service.Switch)
+          || this.accessory.addService(this.platform.Service.Switch);
+        this.lightToggleService
+          .setCharacteristic(this.platform.Characteristic.Name, 'Light toggle')
+          .getCharacteristic(this.platform.Characteristic.On)
+          .onSet(async (value: CharacteristicValue) => {
+            const receivedValue = value.valueOf() as boolean;
+            this.state.lightOn = this.state.lightOn && receivedValue ? false : receivedValue;
+            await device.set({dps: 20, set: this.state.lightOn, shouldWaitForResponse: false});
+          })
+          .onGet(() => this.state.lightOn);
+      }
+
       // Fan Light
       this.lightService = this.accessory.getService(this.platform.Service.Lightbulb)
         || this.accessory.addService(this.platform.Service.Lightbulb);
