@@ -2,7 +2,7 @@ import {CharacteristicValue, PlatformAccessory, Service} from 'homebridge';
 
 import {HomebridgeCreateCeilingFan} from './platform';
 import TuyAPI from 'tuyapi';
-import TuyaDevice from 'tuyapi';
+import TuyaDevice, {DPSObject} from 'tuyapi';
 
 export class ToggleCeilingFanAccessory {
   private fanService!: Service;
@@ -43,6 +43,15 @@ export class ToggleCeilingFanAccessory {
         await device.set({dps: 60, set: this.state.fanOn as boolean, shouldWaitForResponse: false});
       })
       .onGet(() => this.state.fanOn);
+    const stateHook = (data: DPSObject) => {
+      const isOn = data.dps['60'] as boolean | undefined;
+      if (isOn !== undefined) {
+        this.state.fanOn = isOn;
+        this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
+      }
+    };
+    device.on('dp-refresh', stateHook);
+    device.on('data', stateHook);
 
     if (accessory.context.device.hasLight) {
       // Fan Light
@@ -56,8 +65,18 @@ export class ToggleCeilingFanAccessory {
           await device.set({dps: 20, set: this.state.lightOn, shouldWaitForResponse: false});
         })
         .onGet(() => this.state.lightOn);
-    }
 
+      const lightStateHook = (data: DPSObject) => {
+        const isOn = data.dps['20'] as boolean | undefined;
+        if (isOn !== undefined) {
+          this.state.lightOn = isOn;
+          this.platform.log.info('Update light on', this.state.lightOn);
+          this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
+        }
+      };
+      device.on('dp-refresh', lightStateHook);
+      device.on('data', lightStateHook);
+    }
 
     this.connect(device);
   }
