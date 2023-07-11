@@ -52,22 +52,25 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
       const uuid = this.api.hap.uuid.generate(device.id);
       const existingAccessory = this.accessories
         .find(accessory => accessory.UUID === uuid);
-      const toggleUuid = this.api.hap.uuid.generate(`toggle-${device.id}`);
-      const existingToggleAccessory = this.accessories
-        .find(accessory => accessory.UUID === toggleUuid);
       if (existingAccessory) {
         this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
         new CeilingFanAccessory(this, existingAccessory);
-      } else if(existingToggleAccessory) {
-        this.log.info('Restoring existing toggle accessory from cache:', existingToggleAccessory.displayName);
-        new ToggleCeilingFanAccessory(this, existingToggleAccessory);
-      } else {
+      } else if(!existingAccessory) {
         this.log.info('Adding new ceiling fan:', device.id, device.name, device.hasLight);
         const accessory = new this.api.platformAccessory(device.name, uuid, Categories.FAN);
         accessory.context.device = device;
         new CeilingFanAccessory(this, accessory);
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-        if (device.withToggle) {
+      }
+
+      if (device.withToggle) {
+        const toggleUuid = this.api.hap.uuid.generate(`toggle-${device.id}`);
+        const existingToggleAccessory = this.accessories
+          .find(accessory => accessory.UUID === toggleUuid);
+        if(existingToggleAccessory) {
+          this.log.info('Restoring existing toggle accessory from cache:', existingToggleAccessory.displayName);
+          new ToggleCeilingFanAccessory(this, existingToggleAccessory);
+        } else {
           this.log.info('Adding new toggle ceiling fan:', device.id, device.name, device.hasLight);
           const toggleAccessoryId = this.api.hap.uuid.generate(`toggle-${device.id}`);
           const toggleAccessory = new this.api.platformAccessory(`Toggle ${device.name}`, toggleAccessoryId, Categories.FAN);
