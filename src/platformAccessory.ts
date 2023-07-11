@@ -45,19 +45,6 @@ export class CeilingFanAccessory {
     this.fanService = this.accessory.getService(this.platform.Service.Fan) || this.accessory.addService(this.platform.Service.Fan);
     this.fanService.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
 
-    if(accessory.context.device.withToggle) {
-      this.fanToggleService = this.accessory.getService(this.platform.Service.Outlet)
-        || this.accessory.addService(this.platform.Service.Outlet);
-      this.fanToggleService
-        .setCharacteristic(this.platform.Characteristic.Name, 'Fan toggle')
-        .getCharacteristic(this.platform.Characteristic.On)
-        .onSet(async (value: CharacteristicValue) => {
-          const receivedValue = value.valueOf() as boolean;
-          this.state.fanOn = this.state.fanOn && receivedValue ? false : receivedValue;
-          await device.set({dps: 60, set: this.state.fanOn as boolean, shouldWaitForResponse: false});
-        })
-        .onGet(() => this.state.fanOn);
-    }
 
     // Fan state
     this.fanService.getCharacteristic(this.platform.Characteristic.On)
@@ -124,21 +111,6 @@ export class CeilingFanAccessory {
     device.on('data', speedHook);
 
     if (accessory.context.device.hasLight) {
-
-      if(accessory.context.device.withToggle) {
-        this.lightToggleService = this.accessory.getService(this.platform.Service.Switch)
-          || this.accessory.addService(this.platform.Service.Switch);
-        this.lightToggleService
-          .setCharacteristic(this.platform.Characteristic.Name, 'Light toggle')
-          .getCharacteristic(this.platform.Characteristic.On)
-          .onSet(async (value: CharacteristicValue) => {
-            const receivedValue = value.valueOf() as boolean;
-            this.state.lightOn = this.state.lightOn && receivedValue ? false : receivedValue;
-            await device.set({dps: 20, set: this.state.lightOn, shouldWaitForResponse: false});
-          })
-          .onGet(() => this.state.lightOn);
-      }
-
       // Fan Light
       this.lightService = this.accessory.getService(this.platform.Service.Lightbulb)
         || this.accessory.addService(this.platform.Service.Lightbulb);
