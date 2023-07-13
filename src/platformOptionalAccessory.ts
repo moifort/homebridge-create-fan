@@ -47,7 +47,6 @@ export class ToggleCeilingFanAccessory {
       const isOn = data.dps['60'] as boolean | undefined;
       if (isOn !== undefined) {
         this.state.fanOn = isOn;
-        this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
       }
     };
     device.on('dp-refresh', stateHook);
@@ -70,8 +69,6 @@ export class ToggleCeilingFanAccessory {
         const isOn = data.dps['20'] as boolean | undefined;
         if (isOn !== undefined) {
           this.state.lightOn = isOn;
-          this.platform.log.info('Update light on', this.state.lightOn);
-          this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
         }
       };
       device.on('dp-refresh', lightStateHook);
