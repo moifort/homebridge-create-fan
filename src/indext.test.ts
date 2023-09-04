@@ -7,10 +7,10 @@ describe('Ceiling Fan Accessory', () => {
 
   it('should be able to turn on', async () => {
     const device = new TuyAPI({
-      // id: 'bff9ec0ab7910d1763trij',
-      // key: 'E{q~!S7D*+WF6DeP',
-      'id': 'bfc4e4379df08fe6d5pzdr',
-      'key': 'BU2ai1t6ZKrX@dQJ',
+      // id: 'bff9ec0**d1763trij',
+      // key: 'E{***+WF6DeP',
+      'id': 'bfc4e4***d5pzdr',
+      'key': 'BU2ai**ZKrX@dQJ',
     });
 
     await device.find();
