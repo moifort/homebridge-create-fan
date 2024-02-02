@@ -33,6 +33,7 @@ export class CeilingFanAccessory {
 
 
     device.on('disconnected', () => this.connect(device));
+    device.on('error', () => this.connect(device));
 
 
     // Information
