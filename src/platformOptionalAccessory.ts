@@ -24,7 +24,8 @@ export class ToggleCeilingFanAccessory {
     const device = new TuyAPI({
       id: accessory.context.device.id,
       key: accessory.context.device.key,
-      version: '3.3',
+      ip: accessory.context.device.ip,
+      version: accessory.context.device.version,
       issueRefreshOnConnect: true,
     });
 
