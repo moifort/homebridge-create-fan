@@ -7,8 +7,8 @@ import {ToggleCeilingFanAccessory} from './platformOptionalAccessory';
 interface DeviceConfig {
   id: string;
   key: string;
-  ip: string,
-  version: string,
+  ip: string;
+  version: string;
   name: string;
   hasLight: boolean;
   withToggle: boolean;
