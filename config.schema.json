@@ -29,6 +29,19 @@
               "description": "Tuya device key",
               "required": true
             },
+            "ip": {
+              "type": "string",
+              "title": "IP",
+              "description": "Tuya device IP",
+              "required": false
+            },
+            "version": {
+              "type": "string",
+              "title": "Version",
+              "description": "Tuya device version",
+              "default": "3.3",
+              "required": false
+            },
             "name": {
               "type": "string",
               "title": "Device Name",
