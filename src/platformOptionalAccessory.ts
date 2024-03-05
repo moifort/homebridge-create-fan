@@ -29,8 +29,14 @@ export class ToggleCeilingFanAccessory {
       issueRefreshOnConnect: true,
     });
 
-    device.on('disconnected', () => this.connect(device));
-    device.on('error', () => this.connect(device));
+    device.on('disconnected', () => {
+      this.platform.log.info('Disconnected... Try to connect');
+      this.connect(device);
+    });
+    device.on('error', () => {
+      this.platform.log.info('Error... Try to connect');
+      this.connect(device);
+    });
 
 
     // Fan
