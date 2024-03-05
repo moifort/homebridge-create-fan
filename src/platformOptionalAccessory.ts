@@ -30,6 +30,7 @@ export class ToggleCeilingFanAccessory {
     });
 
     device.on('disconnected', () => this.connect(device));
+    device.on('error', () => this.connect(device));
 
 
     // Fan
