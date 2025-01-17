@@ -7,8 +7,6 @@ import TuyaDevice, {DPSObject} from 'tuyapi';
 export class CeilingFanAccessory {
   private fanService!: Service;
   private lightService!: Service;
-  private lightToggleService!: Service;
-  private fanToggleService!: Service;
   private isConnecting = false;
 
   private state = {
@@ -27,11 +25,8 @@ export class CeilingFanAccessory {
     const device = new TuyAPI({
       id: accessory.context.device.id,
       key: accessory.context.device.key,
-      ip: accessory.context.device.ip,
-      version: accessory.context.device.version,
-      nullPayloadOnJSONError: true,
-      issueRefreshOnConnect: true,
-      issueRefreshOnPing: true,
+      // ip: accessory.context.device.ip,
+      // version: accessory.context.device.version,
     });
 
 
@@ -42,8 +37,8 @@ export class CeilingFanAccessory {
 
     device.on('error', error => {
       this.platform.log.info('Error :', error);
-      this.platform.log.info('Try to connect');
-      this.connect(device);
+      // this.platform.log.info('Try to connect');
+      // this.connect(device);
     });
 
 
@@ -74,7 +69,7 @@ export class CeilingFanAccessory {
         this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
       }
     };
-    device.on('dp-refresh', stateHook);
+    // device.on('dp-refresh', stateHook);
     device.on('data', stateHook);
 
     // Fan rotation
@@ -94,7 +89,7 @@ export class CeilingFanAccessory {
         this.fanService.updateCharacteristic(this.platform.Characteristic.RotationDirection, this.state.fanRotation);
       }
     };
-    device.on('dp-refresh', rotationHook);
+    // device.on('dp-refresh', rotationHook);
     device.on('data', rotationHook);
 
     // Fan speed
@@ -117,7 +112,7 @@ export class CeilingFanAccessory {
         this.fanService.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.state.fanSpeed);
       }
     };
-    device.on('dp-refresh', speedHook);
+    // device.on('dp-refresh', speedHook);
     device.on('data', speedHook);
 
     if (accessory.context.device.hasLight) {
@@ -141,7 +136,7 @@ export class CeilingFanAccessory {
           this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
         }
       };
-      device.on('dp-refresh', lightStateHook);
+      // device.on('dp-refresh', lightStateHook);
       device.on('data', lightStateHook);
 
       // Fan Light Brightness
@@ -164,7 +159,7 @@ export class CeilingFanAccessory {
           this.lightService.updateCharacteristic(this.platform.Characteristic.Brightness, this.state.lightBrightness);
         }
       };
-      device.on('dp-refresh', lightBrightnessHook);
+      // device.on('dp-refresh', lightBrightnessHook);
       device.on('data', lightBrightnessHook);
 
 
