@@ -1,4 +1,4 @@
-import {CharacteristicValue, PlatformAccessory, Service} from 'homebridge';
+import {CharacteristicValue, Logger, PlatformAccessory, Service} from 'homebridge';
 
 import {HomebridgeCreateCeilingFan} from './platform';
 import TuyAPI from 'tuyapi';
@@ -29,6 +29,8 @@ export class CeilingFanAccessory {
       // ip: accessory.context.device.ip,
       // version: accessory.context.device.version,
     });
+
+    Logger.withPrefix(accessory.context.device.name ?? '');
 
 
     device.on('disconnected', () => {
