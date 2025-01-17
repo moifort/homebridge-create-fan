@@ -2,7 +2,7 @@
   "private": false,
   "displayName": "Hombridge Create Ceiling Fan",
   "name": "homebridge-create-ceiling-fan",
-  "version": "0.0.89",
+  "version": "0.0.90",
   "description": "Free the full potential of your ceiling fan with Homebridge",
   "license": "Apache-2.0",
   "repository": {
@@ -32,7 +32,7 @@
     "tuya"
   ],
   "dependencies": {
-    "tuyapi": "^7.5.2"
+    "tuyapi": "7.7.0"
   },
   "devDependencies": {
     "@types/node": "^16.10.9",

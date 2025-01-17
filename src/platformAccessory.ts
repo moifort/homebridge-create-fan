@@ -9,6 +9,7 @@ export class CeilingFanAccessory {
   private lightService!: Service;
   private lightToggleService!: Service;
   private fanToggleService!: Service;
+  private isConnecting = false;
 
   private state = {
     fanOn: false,
@@ -28,7 +29,9 @@ export class CeilingFanAccessory {
       key: accessory.context.device.key,
       ip: accessory.context.device.ip,
       version: accessory.context.device.version,
+      nullPayloadOnJSONError: true,
       issueRefreshOnConnect: true,
+      issueRefreshOnPing: true,
     });
 
 
@@ -36,6 +39,7 @@ export class CeilingFanAccessory {
       this.platform.log.info('Disconnected... Try to connect');
       this.connect(device);
     });
+
     device.on('error', error => {
       this.platform.log.info('Error :', error);
       this.platform.log.info('Try to connect');
@@ -188,11 +192,16 @@ export class CeilingFanAccessory {
   }
 
   async connect(device: TuyaDevice) {
+    if (this.isConnecting) {
+      return;
+    }
     try {
+      this.isConnecting = true;
       this.platform.log.info('Connecting...');
       await device.find();
       await device.connect();
       this.platform.log.info('Connected');
+      this.isConnecting = false;
     } catch (e) {
       this.platform.log.info('Connection failed', e);
       this.platform.log.info('Retry in 1 minute');
