@@ -3,7 +3,6 @@ import {CharacteristicValue, PlatformAccessory, Service} from 'homebridge';
 import {HomebridgeCreateCeilingFan} from './platform';
 import TuyAPI from 'tuyapi';
 import TuyaDevice, {DPSObject} from 'tuyapi';
-import {withPrefix} from 'homebridge/lib/logger';
 
 export class CeilingFanAccessory {
   private fanService!: Service;
@@ -31,7 +30,6 @@ export class CeilingFanAccessory {
       version: accessory.context.device.version,
     });
 
-    withPrefix(accessory.context.device.name ?? '');
 
 
     device.on('disconnected', () => {
