@@ -31,6 +31,9 @@ export class CeilingFanAccessory {
       issueRefreshOnConnect: true,
     });
 
+    device.on('connected', () => {
+      this.platform.log.info('Device connected!');
+    });
 
 
     device.on('disconnected', () => {
@@ -188,22 +191,27 @@ export class CeilingFanAccessory {
   }
 
   async connect(device: TuyaDevice) {
+    if (device.isConnected()) {
+      this.platform.log.info('Device already connected!');
+      return;
+    }
     try {
       if (this.isConnecting) {
+        this.platform.log.info('Device is already trying to connect...');
         return;
       }
       this.isConnecting = true;
       this.platform.log.info('Connecting...');
       await device.find();
       await device.connect();
-      this.platform.log.info('Connected');
       this.isConnecting = false;
     } catch (e) {
+      this.platform.log.info('Connection failed', e);
       if(this.isConnectingLater) {
+        this.platform.log.info('Device already wait to reconnect.');
         return;
       }
       this.isConnectingLater = true;
-      this.platform.log.info('Connection failed', e);
       this.platform.log.info('Retry in 1 minute');
       setTimeout(() => {
         this.platform.log.info('Re-connecting...');
