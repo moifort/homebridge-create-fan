@@ -28,6 +28,7 @@ export class CeilingFanAccessory {
       key: accessory.context.device.key,
       ip: accessory.context.device.ip,
       version: accessory.context.device.version,
+      issueRefreshOnConnect: true,
     });
 
     device.on('connected', () => {
