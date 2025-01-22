@@ -29,7 +29,6 @@ export class CeilingFanAccessory {
       ip: accessory.context.device.ip,
       version: accessory.context.device.version,
       issueRefreshOnConnect: true,
-      issueGetOnConnect: true,
     });
 
 
