@@ -27,8 +27,11 @@ export class CeilingFanAccessory {
     const device = new TuyAPI({
       id: accessory.context.device.id,
       key: accessory.context.device.key,
-      // ip: accessory.context.device.ip,
-      // version: accessory.context.device.version,
+      ip: accessory.context.device.ip,
+      version: accessory.context.device.version,
+      issueGetOnConnect: true,
+      issueRefreshOnConnect: true,
+      issueRefreshOnPing: true,
     });
 
     withPrefix(accessory.context.device.name ?? '');
@@ -41,8 +44,6 @@ export class CeilingFanAccessory {
 
     device.on('error', error => {
       this.platform.log.info('Error :', error);
-      this.platform.log.info('Disconnect...');
-      device.disconnect();
     });
 
 
@@ -191,10 +192,10 @@ export class CeilingFanAccessory {
   }
 
   async connect(device: TuyaDevice) {
-    if (this.isConnecting || this.isConnectingLater) {
-      return;
-    }
     try {
+      if (this.isConnecting) {
+        return;
+      }
       this.isConnecting = true;
       this.platform.log.info('Connecting...');
       await device.find();
@@ -202,6 +203,9 @@ export class CeilingFanAccessory {
       this.platform.log.info('Connected');
       this.isConnecting = false;
     } catch (e) {
+      if(this.isConnectingLater) {
+        return;
+      }
       this.isConnectingLater = true;
       this.platform.log.info('Connection failed', e);
       this.platform.log.info('Retry in 1 minute');
