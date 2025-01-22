@@ -29,9 +29,6 @@ export class CeilingFanAccessory {
       key: accessory.context.device.key,
       ip: accessory.context.device.ip,
       version: accessory.context.device.version,
-      issueGetOnConnect: true,
-      issueRefreshOnConnect: true,
-      issueRefreshOnPing: true,
     });
 
     withPrefix(accessory.context.device.name ?? '');
