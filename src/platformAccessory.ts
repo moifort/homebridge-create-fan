@@ -43,6 +43,7 @@ export class CeilingFanAccessory {
 
     device.on('error', error => {
       this.platform.log.info('Error :', error);
+      this.connect(device);
     });
 
 
