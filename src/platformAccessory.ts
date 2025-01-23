@@ -28,7 +28,7 @@ export class CeilingFanAccessory {
       key: accessory.context.device.key,
       ip: accessory.context.device.ip,
       version: accessory.context.device.version,
-      issueRefreshOnConnect: true,
+      // issueRefreshOnConnect: true,
     });
 
     device.on('connected', () => {
@@ -36,14 +36,14 @@ export class CeilingFanAccessory {
     });
 
 
-    device.on('disconnected', () => {
-      this.platform.log.info('Disconnected... Try to connect');
-      this.connect(device);
-    });
+    // device.on('disconnected', () => {
+    //   this.platform.log.info('Disconnected... Try to connect');
+    //   this.connect(device);
+    // });
 
     device.on('error', error => {
       this.platform.log.info('Error :', error);
-      this.connect(device);
+      // this.connect(device);
     });
 
 
@@ -66,16 +66,16 @@ export class CeilingFanAccessory {
         await device.set({dps: 60, set: this.state.fanOn, shouldWaitForResponse: false});
       })
       .onGet(() => this.state.fanOn);
-    const stateHook = (data: DPSObject) => {
-      const isOn = data.dps['60'] as boolean | undefined;
-      if (isOn !== undefined) {
-        this.state.fanOn = isOn;
-        this.platform.log.info('Update fan on', this.state.fanOn);
-        this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
-      }
-    };
-    device.on('dp-refresh', stateHook);
-    device.on('data', stateHook);
+    // const stateHook = (data: DPSObject) => {
+    //   const isOn = data.dps['60'] as boolean | undefined;
+    //   if (isOn !== undefined) {
+    //     this.state.fanOn = isOn;
+    //     this.platform.log.info('Update fan on', this.state.fanOn);
+    //     this.fanService.updateCharacteristic(this.platform.Characteristic.On, this.state.fanOn);
+    //   }
+    // };
+    // device.on('dp-refresh', stateHook);
+    // device.on('data', stateHook);
 
     // Fan rotation
     this.fanService.getCharacteristic(this.platform.Characteristic.RotationDirection)
@@ -84,18 +84,18 @@ export class CeilingFanAccessory {
         await device.set({dps: 63, set:  this.state.fanRotation === 0 ? 'forward' : 'reverse', shouldWaitForResponse: false});
       })
       .onGet(() => this.state.fanRotation);
-    const rotationHook = (data: DPSObject) => {
-      const rotation = data.dps['63'] as string | undefined;
-      if (rotation !== undefined) {
-        this.state.fanRotation = rotation === 'forward'
-          ? this.platform.Characteristic.RotationDirection.CLOCKWISE
-          : this.platform.Characteristic.RotationDirection.COUNTER_CLOCKWISE;
-        this.platform.log.info('Update fan rotation', this.state.fanRotation);
-        this.fanService.updateCharacteristic(this.platform.Characteristic.RotationDirection, this.state.fanRotation);
-      }
-    };
-    device.on('dp-refresh', rotationHook);
-    device.on('data', rotationHook);
+    // const rotationHook = (data: DPSObject) => {
+    //   const rotation = data.dps['63'] as string | undefined;
+    //   if (rotation !== undefined) {
+    //     this.state.fanRotation = rotation === 'forward'
+    //       ? this.platform.Characteristic.RotationDirection.CLOCKWISE
+    //       : this.platform.Characteristic.RotationDirection.COUNTER_CLOCKWISE;
+    //     this.platform.log.info('Update fan rotation', this.state.fanRotation);
+    //     this.fanService.updateCharacteristic(this.platform.Characteristic.RotationDirection, this.state.fanRotation);
+    //   }
+    // };
+    // device.on('dp-refresh', rotationHook);
+    // device.on('data', rotationHook);
 
     // Fan speed
     this.fanService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
@@ -107,18 +107,18 @@ export class CeilingFanAccessory {
           await device.set({dps: 62, set:  this.toStep(this.state.fanSpeed), shouldWaitForResponse: false});
         }
       })
-      .onGet(() => this.state.fanSpeed)
-      .setProps({});
-    const speedHook = (data: DPSObject) => {
-      const speed = data.dps['62'] as number | undefined;
-      if (speed !== undefined) {
-        this.state.fanSpeed = this.toPercent(this.state.fanSpeed, speed);
-        this.platform.log.info('Update fan speed', this.state.fanSpeed);
-        this.fanService.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.state.fanSpeed);
-      }
-    };
-    device.on('dp-refresh', speedHook);
-    device.on('data', speedHook);
+      .onGet(() => this.state.fanSpeed);
+    // .setProps({});
+    // const speedHook = (data: DPSObject) => {
+    //   const speed = data.dps['62'] as number | undefined;
+    //   if (speed !== undefined) {
+    //     this.state.fanSpeed = this.toPercent(this.state.fanSpeed, speed);
+    //     this.platform.log.info('Update fan speed', this.state.fanSpeed);
+    //     this.fanService.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.state.fanSpeed);
+    //   }
+    // };
+    // device.on('dp-refresh', speedHook);
+    // device.on('data', speedHook);
 
     if (accessory.context.device.hasLight) {
       // Fan Light
@@ -133,16 +133,16 @@ export class CeilingFanAccessory {
         })
         .onGet(() => this.state.lightOn);
 
-      const lightStateHook = (data: DPSObject) => {
-        const isOn = data.dps['20'] as boolean | undefined;
-        if (isOn !== undefined) {
-          this.state.lightOn = isOn;
-          this.platform.log.info('Update light on', this.state.lightOn);
-          this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
-        }
-      };
-      device.on('dp-refresh', lightStateHook);
-      device.on('data', lightStateHook);
+      // const lightStateHook = (data: DPSObject) => {
+      //   const isOn = data.dps['20'] as boolean | undefined;
+      //   if (isOn !== undefined) {
+      //     this.state.lightOn = isOn;
+      //     this.platform.log.info('Update light on', this.state.lightOn);
+      //     this.lightService.updateCharacteristic(this.platform.Characteristic.On, this.state.lightOn);
+      //   }
+      // };
+      // device.on('dp-refresh', lightStateHook);
+      // device.on('data', lightStateHook);
 
       // Fan Light Brightness
       this.lightService.getCharacteristic(this.platform.Characteristic.Brightness)
@@ -156,16 +156,16 @@ export class CeilingFanAccessory {
         })
         .onGet(() => this.state.lightBrightness);
 
-      const lightBrightnessHook = (data: DPSObject) => {
-        const brightness = data.dps['22'] as number | undefined;
-        if (brightness !== undefined) {
-          this.state.lightBrightness = brightness / 10;
-          this.platform.log.info('Update brightness', this.state.lightBrightness);
-          this.lightService.updateCharacteristic(this.platform.Characteristic.Brightness, this.state.lightBrightness);
-        }
-      };
-      device.on('dp-refresh', lightBrightnessHook);
-      device.on('data', lightBrightnessHook);
+      // const lightBrightnessHook = (data: DPSObject) => {
+      //   const brightness = data.dps['22'] as number | undefined;
+      //   if (brightness !== undefined) {
+      //     this.state.lightBrightness = brightness / 10;
+      //     this.platform.log.info('Update brightness', this.state.lightBrightness);
+      //     this.lightService.updateCharacteristic(this.platform.Characteristic.Brightness, this.state.lightBrightness);
+      //   }
+      // };
+      // device.on('dp-refresh', lightBrightnessHook);
+      // device.on('data', lightBrightnessHook);
 
 
       // Fan Light ColorTemperature
@@ -196,30 +196,30 @@ export class CeilingFanAccessory {
       this.platform.log.info('Device already connected!');
       return;
     }
-    try {
-      if (this.isConnecting) {
-        this.platform.log.info('Device is already trying to connect...');
-        return;
-      }
-      this.isConnecting = true;
+    // try {
+    if (this.isConnecting) {
       this.platform.log.info('Connecting...');
-      await device.find();
-      await device.connect();
-      this.isConnecting = false;
-    } catch (e) {
-      this.platform.log.info('Connection failed', e);
-      if(this.isConnectingLater) {
-        this.platform.log.info('Device already wait to reconnect.');
-        return;
-      }
-      this.isConnectingLater = true;
-      this.platform.log.info('Retry in 1 minute');
-      setTimeout(() => {
-        this.platform.log.info('Re-connecting...');
-        this.isConnectingLater = false;
-        this.connect(device);
-      }, 60000);
+      return;
     }
+    this.isConnecting = true;
+    this.platform.log.info('Connecting...');
+    await device.find();
+    await device.connect();
+    this.isConnecting = false;
+    // } catch (e) {
+    //   this.platform.log.info('Connection failed', e);
+    //   if(this.isConnectingLater) {
+    //     this.platform.log.info('Device already wait to reconnect.');
+    //     return;
+    //   }
+    //   this.isConnectingLater = true;
+    //   this.platform.log.info('Retry in 1 minute');
+    //   setTimeout(() => {
+    //     this.platform.log.info('Re-connecting...');
+    //     this.isConnectingLater = false;
+    //     this.connect(device);
+    //   }, 60000);
+    // }
   }
 
 
