@@ -2,7 +2,7 @@ import {CharacteristicValue, PlatformAccessory, Service} from 'homebridge';
 
 import {HomebridgeCreateCeilingFan} from './platform';
 import TuyAPI from 'tuyapi';
-import TuyaDevice, {DPSObject} from 'tuyapi';
+import TuyaDevice from 'tuyapi';
 
 export class CeilingFanAccessory {
   private fanService!: Service;
