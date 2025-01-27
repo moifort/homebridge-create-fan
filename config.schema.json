@@ -13,51 +13,51 @@
       },
       "devices": {
         "type": "array",
-        "title": "Devices",
+        "title": "Fans",
         "items": {
           "type": "object",
           "properties": {
             "id": {
               "type": "string",
               "title": "ID",
-              "description": "Tuya device ID",
+              "description": "Tuya fan ID",
               "required": true
             },
             "key": {
               "type": "string",
               "title": "Key",
-              "description": "Tuya device key",
+              "description": "Tuya fan key",
               "required": true
             },
             "ip": {
               "type": "string",
               "title": "IP",
-              "description": "Tuya device IP",
+              "description": "Tuya fan IP",
               "required": false
             },
             "version": {
               "type": "string",
               "title": "Version",
-              "description": "Tuya device version",
+              "description": "Tuya fan version",
               "default": "3.3",
               "required": false
             },
             "name": {
               "type": "string",
-              "title": "Device Name",
-              "description": "Name of the device",
+              "title": "Fan Name",
+              "description": "Name of the fan",
               "required": true
             },
             "hasLight": {
               "type": "boolean",
               "title": "Has Light",
-              "description": "Device has a light ?",
+              "description": "Fan has a light ?",
               "required": true
             },
             "withToggle": {
               "type": "boolean",
               "title": "Add toggle switch for light and fan",
-              "description": "Check true if you have a toggle switch (switch with 1 click)",
+              "description": "Check true if you have a toggle switch (faster than a Homekit shortcut)",
               "required": false
             }
           }

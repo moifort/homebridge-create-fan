@@ -1,10 +1,8 @@
-import {API, Categories, Characteristic, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service} from 'homebridge';
+import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
+import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
+import { FanAccessory } from './accessory';
 
-import {PLATFORM_NAME, PLUGIN_NAME} from './settings';
-import {CeilingFanAccessory} from './platformAccessory';
-import {ToggleCeilingFanAccessory} from './platformOptionalAccessory';
-
-interface DeviceConfig {
+interface FanConfiguration {
   id: string;
   key: string;
   ip: string;
@@ -14,73 +12,67 @@ interface DeviceConfig {
   withToggle: boolean;
 }
 
-/**
- * HomebridgePlatform
- * This class is the main constructor for your plugin, this is where you should
- * parse the user config and discover/register accessories with Homebridge.
- */
 export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
-  public readonly Service: typeof Service = this.api.hap.Service;
-  public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
-  public readonly accessories: PlatformAccessory[] = [];
-  private devices: DeviceConfig[] = [];
+  public readonly Service: typeof Service;
+  public readonly Characteristic: typeof Characteristic;
+  public readonly accessories: Map<string, PlatformAccessory> = new Map();
+  public readonly discoveredCacheUUIDs: string[] = [];
 
   constructor(
-    public readonly log: Logger,
+    public readonly log: Logging,
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
-    // Check if the configuration contains devices
-    if (config.devices && Array.isArray(config.devices)) {
-      this.devices = config.devices;
-    } else {
-      this.log.warn('No devices specified in the configuration.');
-    }
-
+    this.Service = api.hap.Service;
+    this.Characteristic = api.hap.Characteristic;
     this.log.debug('Finished initializing platform:', this.config.name);
+
+    // When this event is fired it means Homebridge has restored all cached accessories from disk.
+    // Dynamic Platform plugins should only register new accessories after this event was fired,
+    // in order to ensure they weren't added to homebridge already. This event can also be used
+    // to start discovery of new accessories.
     this.api.on('didFinishLaunching', () => {
       log.debug('Executed didFinishLaunching callback');
-      this.discoverDevices();
+      if (!config.devices || !Array.isArray(config.devices) || config.devices.length === 0) {
+        this.log.warn('No fans specified in the configuration.');
+        return;
+      }
+      this.discoverDevices(config.devices);
     });
   }
 
-  configureAccessory(accessory: PlatformAccessory) {
-    this.log.info('Loading accessory from cache:', accessory.displayName);
-    this.accessories.push(accessory);
-  }
-
-  discoverDevices() {
-    for (const device of this.devices) {
-      const uuid = this.api.hap.uuid.generate(device.id);
-      const existingAccessory = this.accessories
-        .find(accessory => accessory.UUID === uuid);
-      if (existingAccessory) {
-        this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
-        new CeilingFanAccessory(this, existingAccessory);
-      } else if(!existingAccessory) {
-        this.log.info('Adding new ceiling fan:', device.id, device.name, device.hasLight);
-        const accessory = new this.api.platformAccessory(device.name, uuid, Categories.FAN);
-        accessory.context.device = device;
-        new CeilingFanAccessory(this, accessory);
+  discoverDevices(fans: FanConfiguration[]) {
+    for (const fan of fans) {
+      const uuid = this.api.hap.uuid.generate(fan.id);
+      const existingFan = this.accessories.get(uuid);
+      if (existingFan) {
+        this.log.info('Restoring existing accessory from cache:', existingFan.displayName);
+        new FanAccessory(this, existingFan);
+      } else {
+        this.log.info('Adding new accessory:', fan.name);
+        const accessory = new this.api.platformAccessory(fan.name, uuid);
+        accessory.context.device = fan;
+        new FanAccessory(this, accessory);
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       }
+      this.discoveredCacheUUIDs.push(uuid);
+    }
 
-      if (device.withToggle) {
-        const toggleUuid = this.api.hap.uuid.generate(`toggle-${device.id}`);
-        const existingToggleAccessory = this.accessories
-          .find(accessory => accessory.UUID === toggleUuid);
-        if(existingToggleAccessory) {
-          this.log.info('Restoring existing toggle accessory from cache:', existingToggleAccessory.displayName);
-          new ToggleCeilingFanAccessory(this, existingToggleAccessory);
-        } else {
-          this.log.info('Adding new toggle ceiling fan:', device.id, device.name, device.hasLight);
-          const toggleAccessoryId = this.api.hap.uuid.generate(`toggle-${device.id}`);
-          const toggleAccessory = new this.api.platformAccessory(`Toggle ${device.name}`, toggleAccessoryId, Categories.FAN);
-          toggleAccessory.context.device = device;
-          new ToggleCeilingFanAccessory(this, toggleAccessory);
-          this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [toggleAccessory]);
-        }
+    // Clean
+    for (const [uuid, accessory] of this.accessories) {
+      if (!this.discoveredCacheUUIDs.includes(uuid)) {
+        this.log.info('Removing existing accessory from cache:', accessory.displayName);
+        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       }
     }
+  }
+
+  /**
+   * This function is invoked when homebridge restores cached accessories from disk at startup.
+   * It should be used to set up event handlers for characteristics and update respective values.
+   */
+  configureAccessory(accessory: PlatformAccessory) {
+    this.log.info('Loading accessory from cache:', accessory.displayName);
+    this.accessories.set(accessory.UUID, accessory);
   }
 }
