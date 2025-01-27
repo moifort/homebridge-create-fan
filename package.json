@@ -29,7 +29,7 @@
     "lint": "eslint . --max-warnings=0",
     "watch": "npm run build && npm link && nodemon",
     "deploy": "npm run build && npm version patch && npm publish",
-    "deploy-beta": "npm run build && npm version prepatch --preid beta && npm publish --tag=beta"
+    "deploy:beta": "npm run build && npm version prepatch --preid beta && npm publish --tag=beta"
   },
   "dependencies": {
     "tuyapi": "7.7.0",
