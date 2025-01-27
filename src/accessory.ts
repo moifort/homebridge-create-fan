@@ -55,24 +55,27 @@ export class FanAccessory {
       .onSet(this.toggleLightOn.bind(this));
 
     this.tuyaDevice = new TuyAPI({ id: accessory.context.device.id, key: accessory.context.device.key });
-    this.tuyaDevice.on('disconnected', () => this.log.warn('Disconnected'));
-    this.tuyaDevice.on('error', error => this.log.error(error.message));
-    this.connect(this.tuyaDevice);
+    this.tuyaDevice.on('disconnected', () => this.log.info(`${this.accessory.displayName}:`,'Disconnected'));
+    this.tuyaDevice.on('error', error => this.log.warn(`${this.accessory.displayName}:`,`Error -> ${error.toString()}`));
   }
 
-  async connect(device: TuyaDevice) {
+  async connect() {
+    if (this.tuyaDevice.isConnected()) {
+      return;
+    }
     if (this.isConnecting) {
       return;
     }
     this.isConnecting = true;
     this.log.info(`${this.accessory.displayName}:`, 'Connecting...');
-    await device.find();
-    await device.connect();
+    await this.tuyaDevice.find();
+    await this.tuyaDevice.connect();
     this.log.info(`${this.accessory.displayName}:`, 'Connected!');
     this.isConnecting = false;
   }
 
   async sendCommand(dps: number, value: string | number | boolean) {
+    await this.connect();
     this.log.debug(`${this.accessory.displayName}:`, `sendCommand(${dps}, ${value})`);
     await this.tuyaDevice.set({ dps, set: value });
   }
