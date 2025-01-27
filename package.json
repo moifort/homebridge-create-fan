@@ -1,9 +1,11 @@
 {
-  "private": false,
-  "displayName": "Hombridge Create Ceiling Fan",
   "name": "homebridge-create-ceiling-fan",
+  "displayName": "Hombridge Create Ceiling Fan",
+  "type": "module",
   "version": "2.0.1-beta.0",
+  "private": true,
   "description": "Free the full potential of your ceiling fan with Homebridge",
+  "author": "Thibaut Mottet",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -13,17 +15,13 @@
     "url": "https://github.com/moifort/homebridge-create-fan/issues"
   },
   "keywords": [
-    "homebridge-plugin",
-    "create",
-    "fan",
-    "ceiling fan",
-    "tuya"
+    "homebridge-plugin"
   ],
+  "main": "dist/index.js",
   "engines": {
     "node": "^18.20.4 || ^20.18.0 || ^22.10.0",
     "homebridge": "^1.8.0 || ^2.0.0-beta.0"
   },
-  "main": "dist/index.js",
   "scripts": {
     "build": "rimraf ./dist && tsc",
     "lint": "eslint . --max-warnings=0",

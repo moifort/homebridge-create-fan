@@ -1,8 +1,8 @@
 import { API } from 'homebridge';
 
 
-import { HomebridgeCreateCeilingFan } from './platform';
-import { PLATFORM_NAME } from './settings';
+import { HomebridgeCreateCeilingFan } from './platform.js';
+import { PLATFORM_NAME } from './settings.js';
 
 /**
  * This method registers the platform with Homebridge

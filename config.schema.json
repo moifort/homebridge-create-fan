@@ -29,36 +29,11 @@
               "description": "Tuya fan key",
               "required": true
             },
-            "ip": {
-              "type": "string",
-              "title": "IP",
-              "description": "Tuya fan IP",
-              "required": false
-            },
-            "version": {
-              "type": "string",
-              "title": "Version",
-              "description": "Tuya fan version",
-              "default": "3.3",
-              "required": false
-            },
             "name": {
               "type": "string",
               "title": "Fan Name",
               "description": "Name of the fan",
               "required": true
-            },
-            "hasLight": {
-              "type": "boolean",
-              "title": "Has Light",
-              "description": "Fan has a light ?",
-              "required": true
-            },
-            "withToggle": {
-              "type": "boolean",
-              "title": "Add toggle switch for light and fan",
-              "description": "Check true if you have a toggle switch (faster than a Homekit shortcut)",
-              "required": false
             }
           }
         }
