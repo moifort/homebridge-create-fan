@@ -57,6 +57,7 @@ export class FanAccessory {
     this.tuyaDevice = new TuyAPI({ id: accessory.context.device.id, key: accessory.context.device.key });
     this.tuyaDevice.on('disconnected', () => this.log.info(`${this.accessory.displayName}:`,'Disconnected'));
     this.tuyaDevice.on('error', error => this.log.warn(`${this.accessory.displayName}:`,`Error -> ${error.toString()}`));
+    this.connect();
   }
 
   async connect() {
