@@ -2,7 +2,7 @@
   "private": false,
   "displayName": "Hombridge Create Ceiling Fan",
   "name": "homebridge-create-ceiling-fan",
-  "version": "1.0.3-beta.0",
+  "version": "2.0.0-beta.0",
   "description": "Free the full potential of your ceiling fan with Homebridge",
   "license": "Apache-2.0",
   "repository": {
@@ -28,7 +28,7 @@
     "build": "rimraf ./dist && tsc",
     "lint": "eslint . --max-warnings=0",
     "watch": "npm run build && npm link && nodemon",
-    "deploy": "npm run build && npm version patch && npm publish"
+    "deploy": "npm run build && npm version patch && npm publish --tag=beta"
   },
   "dependencies": {
     "tuyapi": "7.7.0",
