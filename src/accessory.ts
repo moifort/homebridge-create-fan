@@ -11,6 +11,7 @@ export class FanAccessory {
   private readonly log: Logging;
   private readonly tuyaDevice: TuyaDevice;
   private isConnecting = false;
+  private isConnected = false;
   private fanState = {
     Active: 0 as CharacteristicValue, // 0 = Inactive, 1 = Active
     Rotation: 0 as CharacteristicValue, // 0 = Clockwise, 1 = Counter-Clockwise
@@ -60,16 +61,16 @@ export class FanAccessory {
       this.log.info(`${this.accessory.displayName}:`,'Disconnected');
       this.connect();
     });
-    this.tuyaDevice.on('connected', () => this.log.info(`${this.accessory.displayName}:`,'Connected!'));
+    this.tuyaDevice.on('connected', () => {
+      this.log.info(`${this.accessory.displayName}:`,'Connected!');
+      this.isConnected = true;
+    });
     this.tuyaDevice.on('error', error => this.log.warn(`${this.accessory.displayName}:`,`Error -> ${error.toString()}`));
     this.connect();
   }
 
   async connect() {
-    if (this.tuyaDevice.isConnected()) {
-      return;
-    }
-    if (this.isConnecting) {
+    if (this.isConnecting || this.isConnected) {
       return;
     }
     this.isConnecting = true;
@@ -89,7 +90,7 @@ export class FanAccessory {
     return this.fanState.Active;
   }
 
-  async setFanActivity(value: CharacteristicValue) {
+  setFanActivity(value: CharacteristicValue) {
     this.fanState.Active = this.fanState.Active === this.Characteristic.Active.INACTIVE
       ? this.Characteristic.Active.ACTIVE
       : this.Characteristic.Active.INACTIVE;
@@ -105,7 +106,7 @@ export class FanAccessory {
     return this.lightState.On;
   }
 
-  async setLightOn(value: CharacteristicValue) {
+  setLightOn(value: CharacteristicValue) {
     if (value !== this.lightState.On) {
       this.lightState.On = value as boolean;
       this.sendCommand(20, this.lightState.On);
@@ -113,7 +114,7 @@ export class FanAccessory {
     this.log.debug(`${this.accessory.displayName}:`, `setLightOn() => ${this.lightState.On ? 'ON' : 'OFF'}`);
   }
 
-  async toggleLightOn(value: CharacteristicValue) {
+  toggleLightOn(value: CharacteristicValue) {
     this.lightState.On = !this.lightState.On;
     if (value !== this.lightState.On) {
       this.lightService.updateCharacteristic(this.Characteristic.On, this.lightState.On);
