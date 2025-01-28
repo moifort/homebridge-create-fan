@@ -50,12 +50,17 @@ export class FanAccessory {
       .onGet(this.getLightOn.bind(this))
       .onSet(this.setLightOn.bind(this));
     this.toggleLightService = this.accessory.getService(this.platform.Service.Switch) || this.accessory.addService(this.platform.Service.Switch);
+    this.toggleLightService.setCharacteristic(this.Characteristic.Name, `${accessory.context.device.name} Toggle Light`);
     this.toggleLightService.getCharacteristic(this.Characteristic.On)
       .onGet(this.getLightOn.bind(this))
       .onSet(this.toggleLightOn.bind(this));
 
     this.tuyaDevice = new TuyAPI({ id: accessory.context.device.id, key: accessory.context.device.key });
-    this.tuyaDevice.on('disconnected', () => this.log.info(`${this.accessory.displayName}:`,'Disconnected'));
+    this.tuyaDevice.on('disconnected', () => {
+      this.log.info(`${this.accessory.displayName}:`,'Disconnected');
+      this.connect();
+    });
+    this.tuyaDevice.on('connected', () => this.log.info(`${this.accessory.displayName}:`,'Connected!'));
     this.tuyaDevice.on('error', error => this.log.warn(`${this.accessory.displayName}:`,`Error -> ${error.toString()}`));
     this.connect();
   }
@@ -71,12 +76,10 @@ export class FanAccessory {
     this.log.info(`${this.accessory.displayName}:`, 'Connecting...');
     await this.tuyaDevice.find();
     await this.tuyaDevice.connect();
-    this.log.info(`${this.accessory.displayName}:`, 'Connected!');
     this.isConnecting = false;
   }
 
   async sendCommand(dps: number, value: string | number | boolean) {
-    await this.connect();
     this.log.debug(`${this.accessory.displayName}:`, `sendCommand(${dps}, ${value})`);
     await this.tuyaDevice.set({ dps, set: value });
   }
