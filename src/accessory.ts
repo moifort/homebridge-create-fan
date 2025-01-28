@@ -79,9 +79,9 @@ export class FanAccessory {
     this.isConnecting = false;
   }
 
-  async sendCommand(dps: number, value: string | number | boolean) {
+  sendCommand(dps: number, value: string | number | boolean) {
     this.log.debug(`${this.accessory.displayName}:`, `sendCommand(${dps}, ${value})`);
-    await this.tuyaDevice.set({ dps, set: value });
+    this.tuyaDevice.set({ dps, set: value });
   }
 
   getFanActivity() {
@@ -96,7 +96,7 @@ export class FanAccessory {
     if (value !== this.fanState.Active) {
       this.fanService.updateCharacteristic(this.Characteristic.Active, this.fanState.Active);
     }
-    await this.sendCommand(60, this.fanState.Active === 1);
+    this.sendCommand(60, this.fanState.Active === 1);
     this.log.debug(`${this.accessory.displayName}:`, `setFanActivity() => ${value === 0 ? 'INACTIVE' : 'ACTIVE'}`);
   }
 
@@ -108,7 +108,7 @@ export class FanAccessory {
   async setLightOn(value: CharacteristicValue) {
     if (value !== this.lightState.On) {
       this.lightState.On = value as boolean;
-      await this.sendCommand(20, this.lightState.On);
+      this.sendCommand(20, this.lightState.On);
     }
     this.log.debug(`${this.accessory.displayName}:`, `setLightOn() => ${this.lightState.On ? 'ON' : 'OFF'}`);
   }
@@ -119,7 +119,7 @@ export class FanAccessory {
       this.lightService.updateCharacteristic(this.Characteristic.On, this.lightState.On);
       this.toggleLightService.updateCharacteristic(this.Characteristic.On, this.lightState.On);
     }
-    await this.sendCommand(20, this.lightState.On);
+    this.sendCommand(20, this.lightState.On);
     this.log.debug(`${this.accessory.displayName}:`, `toggleLightOn() => ${this.lightState.On ? 'ON' : 'OFF'}`);
   }
 }
