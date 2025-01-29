@@ -56,7 +56,7 @@ export class FanAccessory {
       .onGet(this.getLightOn.bind(this))
       .onSet(this.toggleLightOn.bind(this));
 
-    this.tuyaDevice = new TuyAPI({ id: accessory.context.device.id, key: accessory.context.device.key, version: 3.3, issueRefreshOnConnect: true });
+    this.tuyaDevice = new TuyAPI({ id: accessory.context.device.id, key: accessory.context.device.key });
     this.tuyaDevice.on('disconnected', () => {
       this.log.info(`${this.accessory.displayName}:`,'Disconnected');
       this.isConnected = false;
