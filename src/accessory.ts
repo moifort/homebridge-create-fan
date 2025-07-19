@@ -45,6 +45,14 @@ export class FanAccessory {
       .onGet(this.getFanActivity.bind(this))
       .onSet(this.setFanActivity.bind(this));
 
+    this.fanService.getCharacteristic(this.Characteristic.RotationDirection)
+      .onGet(this.getFanRotation.bind(this))
+      .onSet(this.setFanRotation.bind(this));
+
+    this.fanService.getCharacteristic(this.Characteristic.RotationSpeed)
+      .onGet(this.getFanSpeed.bind(this))
+      .onSet(this.setFanSpeed.bind(this));
+
     // Light
     this.lightService = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
     this.lightService.getCharacteristic(this.Characteristic.On)
@@ -56,7 +64,12 @@ export class FanAccessory {
       .onGet(this.getLightOn.bind(this))
       .onSet(this.toggleLightOn.bind(this));
 
-    this.tuyaDevice = new TuyAPI({ id: accessory.context.device.id, key: accessory.context.device.key });
+    this.tuyaDevice = new TuyAPI({ 
+      id: accessory.context.device.id, 
+      key: accessory.context.device.key,
+      ip: accessory.context.device.ip,
+      version: accessory.context.device.version
+    });
     this.tuyaDevice.on('disconnected', () => {
       this.log.info(`${this.accessory.displayName}:`,'Disconnected');
       this.isConnected = false;
@@ -66,7 +79,7 @@ export class FanAccessory {
       this.log.info(`${this.accessory.displayName}:`,'Connected!');
       this.isConnected = true;
     });
-    this.tuyaDevice.on('error', error => this.log.warn(`${this.accessory.displayName}:`,`Error -> ${error.toString()}`));
+    this.tuyaDevice.on('error', (error: Error) => this.log.warn(`${this.accessory.displayName}:`,`Error -> ${error.toString()}`));
     this.connect();
   }
 
@@ -92,12 +105,7 @@ export class FanAccessory {
   }
 
   setFanActivity(value: CharacteristicValue) {
-    this.fanState.Active = this.fanState.Active === this.Characteristic.Active.INACTIVE
-      ? this.Characteristic.Active.ACTIVE
-      : this.Characteristic.Active.INACTIVE;
-    if (value !== this.fanState.Active) {
-      this.fanService.updateCharacteristic(this.Characteristic.Active, this.fanState.Active);
-    }
+    this.fanState.Active = value as number;
     this.sendCommand(60, this.fanState.Active === 1);
     this.log.debug(`${this.accessory.displayName}:`, `setFanActivity() => ${value === 0 ? 'INACTIVE' : 'ACTIVE'}`);
   }
@@ -123,5 +131,39 @@ export class FanAccessory {
     }
     this.sendCommand(20, this.lightState.On);
     this.log.debug(`${this.accessory.displayName}:`, `toggleLightOn() => ${this.lightState.On ? 'ON' : 'OFF'}`);
+  }
+
+  getFanRotation() {
+    this.log.debug(`${this.accessory.displayName}:`, `getFanRotation() => ${this.fanState.Rotation === 0 ? 'CLOCKWISE' : 'COUNTER_CLOCKWISE'}`);
+    return this.fanState.Rotation;
+  }
+
+  setFanRotation(value: CharacteristicValue) {
+    this.fanState.Rotation = value as number;
+    this.sendCommand(63, this.fanState.Rotation === 0 ? 'forward' : 'reverse');
+    this.log.debug(`${this.accessory.displayName}:`, `setFanRotation() => ${value === 0 ? 'CLOCKWISE' : 'COUNTER_CLOCKWISE'}`);
+  }
+
+  getFanSpeed() {
+    this.log.debug(`${this.accessory.displayName}:`, `getFanSpeed() => ${this.fanState.Speed}`);
+    return this.fanState.Speed;
+  }
+
+  setFanSpeed(value: CharacteristicValue) {
+    if (value === 0) {
+      this.fanState.Active = 0;
+      this.fanService.updateCharacteristic(this.Characteristic.Active, this.fanState.Active);
+      this.sendCommand(60, false);
+    } else {
+      this.fanState.Speed = value as number;
+      this.sendCommand(62, this.toStep(this.fanState.Speed));
+    }
+    this.log.debug(`${this.accessory.displayName}:`, `setFanSpeed() => ${value}`);
+  }
+
+  toStep(percent: number) {
+    const steps = [1, 2, 3, 4, 5, 6];
+    const stepIndex = Math.floor(percent / 16.67); // 100 / 6 = 16.67
+    return steps[Math.min(stepIndex, steps.length - 1)];
   }
 }

@@ -6,6 +6,8 @@ export interface FanConfiguration {
   id: string;
   key: string;
   name: string;
+  ip: string;
+  version: number;
 }
 export type PlatformAccessoryContext = { device: FanConfiguration } ;
 

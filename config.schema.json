@@ -34,6 +34,19 @@
               "title": "Fan Name",
               "description": "Name of the fan",
               "required": true
+            },
+            "ip": {
+              "type": "string",
+              "title": "IP Address",
+              "description": "Local IP address of the fan device",
+              "required": true
+            },
+            "version": {
+              "type": "number",
+              "title": "Protocol Version",
+              "description": "Tuya protocol version (usually 3.1 or 3.4)",
+              "required": true,
+              "default": 3.4
             }
           }
         }
