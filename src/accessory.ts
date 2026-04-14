@@ -11,15 +11,8 @@ export class FanAccessory {
   private readonly tuyaDevice: TuyaDevice;
   private isConnecting = false;
   private isConnected = false;
-  private fanState = {
-    Active: 0 as CharacteristicValue, // 0 = Inactive, 1 = Active
-    Rotation: 0 as CharacteristicValue, // 0 = Clockwise, 1 = Counter-Clockwise
-    Speed: 20,
-  };
-  private lightState = {
-    On: false,
-    Brightness: 60,
-  };
+  private fanState: { Active: 0 | 1; Rotation: CharacteristicValue; Speed: number };
+  private lightState: { On: boolean; Brightness: number };
 
   constructor(
     private readonly platform: HomebridgeCreateCeilingFan,
@@ -27,6 +20,17 @@ export class FanAccessory {
   ) {
     this.Characteristic = this.platform.Characteristic;
     this.log = this.platform.log;
+
+    // Restore last known state from Homebridge persistent context (survives restarts)
+    this.fanState = {
+      Active: accessory.context.fanState?.Active ?? 0,
+      Rotation: 0 as CharacteristicValue, // 0 = Clockwise, 1 = Counter-Clockwise
+      Speed: 20,
+    };
+    this.lightState = {
+      On: accessory.context.lightState?.On ?? false,
+      Brightness: 60,
+    };
 
     this.log.info(`${accessory.displayName}:`, 'Init...');
 
@@ -86,20 +90,23 @@ export class FanAccessory {
     this.tuyaDevice.set({ dps, set: value });
   }
 
+  private persistState() {
+    this.accessory.context.fanState = { Active: this.fanState.Active };
+    this.accessory.context.lightState = { On: this.lightState.On };
+    this.platform.api.updatePlatformAccessories([this.accessory]);
+  }
+
   getFanActivity() {
     this.log.debug(`${this.accessory.displayName}:`, `getFanActivity() => ${this.fanState.Active === 0 ? 'INACTIVE' : 'ACTIVE'}`);
     return this.fanState.Active;
   }
 
   setFanActivity(value: CharacteristicValue) {
-    this.fanState.Active = this.fanState.Active === this.Characteristic.Active.INACTIVE
-      ? this.Characteristic.Active.ACTIVE
-      : this.Characteristic.Active.INACTIVE;
-    if (value !== this.fanState.Active) {
-      this.fanService.updateCharacteristic(this.Characteristic.Active, this.fanState.Active);
-    }
-    this.sendCommand(60, this.fanState.Active === 1);
-    this.log.debug(`${this.accessory.displayName}:`, `setFanActivity() => ${value === 0 ? 'INACTIVE' : 'ACTIVE'}`);
+    const next: 0 | 1 = value === this.Characteristic.Active.ACTIVE ? 1 : 0;
+    this.fanState.Active = next;
+    this.persistState();
+    this.sendCommand(60, next === 1);
+    this.log.debug(`${this.accessory.displayName}:`, `setFanActivity() => ${next === 0 ? 'INACTIVE' : 'ACTIVE'}`);
   }
 
   getLightOn() {
@@ -108,11 +115,11 @@ export class FanAccessory {
   }
 
   setLightOn(value: CharacteristicValue) {
-    if (value !== this.lightState.On) {
-      this.lightState.On = value as boolean;
-      this.sendCommand(20, this.lightState.On);
-    }
-    this.log.debug(`${this.accessory.displayName}:`, `setLightOn() => ${this.lightState.On ? 'ON' : 'OFF'}`);
+    const next = value as boolean;
+    this.lightState.On = next;
+    this.persistState();
+    this.sendCommand(20, next);
+    this.log.debug(`${this.accessory.displayName}:`, `setLightOn() => ${next ? 'ON' : 'OFF'}`);
   }
 
 }

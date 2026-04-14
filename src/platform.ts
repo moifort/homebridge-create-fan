@@ -7,7 +7,20 @@ export interface FanConfiguration {
   key: string;
   name: string;
 }
-export type PlatformAccessoryContext = { device: FanConfiguration } ;
+
+export interface PersistedFanState {
+  Active: 0 | 1;
+}
+
+export interface PersistedLightState {
+  On: boolean;
+}
+
+export type PlatformAccessoryContext = {
+  device: FanConfiguration;
+  fanState?: PersistedFanState;
+  lightState?: PersistedLightState;
+};
 
 
 export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
