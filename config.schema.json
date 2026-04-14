@@ -35,11 +35,10 @@
               "description": "Name of the fan",
               "required": true
             },
-            "hasBeep": {
+            "beep": {
               "type": "boolean",
-              "title": "Has beep control (v2 only)",
-              "description": "Adds a Beep switch to toggle the audible confirmation the fan emits on each command. Enabled by default (v2 models). Uncheck for v1 models which do not expose this Tuya DP.",
-              "default": true,
+              "title": "Beep on command (v2 only)",
+              "description": "Enable or disable the audible beep the fan emits on each command. Leave unset to not touch the device (recommended for v1 models which do not expose this Tuya DP). Applied once per Tuya reconnect.",
               "required": false
             }
           }

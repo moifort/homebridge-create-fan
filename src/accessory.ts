@@ -34,7 +34,6 @@ const stepToPercent = (step: number): number =>
 export class FanAccessory {
   private readonly fanService: Service;
   private readonly lightService: Service;
-  private readonly beepService?: Service;
   private readonly Characteristic: typeof Characteristic;
   private readonly log: Logging;
   private readonly tuyaDevice: TuyaDevice;
@@ -42,7 +41,6 @@ export class FanAccessory {
   private isConnected = false;
   private fanState: { Active: 0 | 1; RotationSpeed: number; RotationDirection: 0 | 1 };
   private lightState: { On: boolean; Brightness: number };
-  private beepState: { On: boolean };
   private readonly pendingWrites = new Map<number, { value: DpsPrimitive; timer: NodeJS.Timeout }>();
   private readonly recentWrites = new Map<number, { value: DpsPrimitive; at: number }>();
 
@@ -63,9 +61,7 @@ export class FanAccessory {
       On: accessory.context.lightState?.On ?? false,
       Brightness: 60,
     };
-    this.beepState = {
-      On: accessory.context.beepState?.On ?? true,
-    };
+    delete (accessory.context as { beepState?: unknown }).beepState;
 
     this.log.info(`${accessory.displayName}:`, 'Init...');
 
@@ -96,19 +92,10 @@ export class FanAccessory {
       .onGet(this.getLightOn.bind(this))
       .onSet(this.setLightOn.bind(this));
 
-    // Beep — add or remove based on config (default enabled, v1 users opt out)
-    const beepEnabled = accessory.context.device.hasBeep !== false;
-    const existingBeep = this.accessory.getServiceById(this.platform.Service.Switch, BEEP_SUBTYPE);
-    if (beepEnabled) {
-      const beepName = `${accessory.context.device.name} Beep`;
-      this.beepService = existingBeep
-        ?? this.accessory.addService(this.platform.Service.Switch, beepName, BEEP_SUBTYPE);
-      this.beepService.setCharacteristic(this.Characteristic.Name, beepName);
-      this.beepService.getCharacteristic(this.Characteristic.On)
-        .onGet(this.getBeepOn.bind(this))
-        .onSet(this.setBeepOn.bind(this));
-    } else if (existingBeep) {
-      this.accessory.removeService(existingBeep);
+    // Remove legacy Beep switch service from cached accessories — beep is now driven by config
+    const legacyBeepSwitch = this.accessory.getServiceById(this.platform.Service.Switch, BEEP_SUBTYPE);
+    if (legacyBeepSwitch) {
+      this.accessory.removeService(legacyBeepSwitch);
     }
 
     // Remove legacy Toggle Light switch service (no subtype) from cached accessories
@@ -130,6 +117,7 @@ export class FanAccessory {
     this.tuyaDevice.on('connected', () => {
       this.log.info(`${this.accessory.displayName}:`,'Connected!');
       this.isConnected = true;
+      this.applyBeepConfig();
     });
     this.tuyaDevice.on('error', error => this.log.warn(`${this.accessory.displayName}:`,`Error -> ${error.toString()}`));
     this.tuyaDevice.on('data', data => this.applyDps(data?.dps));
@@ -183,8 +171,16 @@ export class FanAccessory {
       RotationDirection: this.fanState.RotationDirection,
     };
     this.accessory.context.lightState = { On: this.lightState.On };
-    this.accessory.context.beepState = { On: this.beepState.On };
     this.platform.api.updatePlatformAccessories([this.accessory]);
+  }
+
+  private applyBeepConfig() {
+    const configured = this.accessory.context.device.beep;
+    if (configured === undefined) {
+      return;
+    }
+    this.log.debug(`${this.accessory.displayName}:`, `applying config beep -> ${configured ? 'ON' : 'OFF'}`);
+    this.scheduleCommand(DPS_BEEP, configured);
   }
 
   private applyDps(dps: Record<string, unknown> | undefined) {
@@ -229,16 +225,6 @@ export class FanAccessory {
         this.fanService.updateCharacteristic(this.Characteristic.RotationDirection, nextDirection);
         changed = true;
         this.log.debug(`${this.accessory.displayName}:`, `Tuya -> fan direction ${directionDps}`);
-      }
-    }
-
-    if (this.beepService) {
-      const beepDps = dps[String(DPS_BEEP)];
-      if (typeof beepDps === 'boolean' && !this.shouldIgnoreEcho(DPS_BEEP, beepDps) && beepDps !== this.beepState.On) {
-        this.beepState.On = beepDps;
-        this.beepService.updateCharacteristic(this.Characteristic.On, beepDps);
-        changed = true;
-        this.log.debug(`${this.accessory.displayName}:`, `Tuya -> beep ${beepDps ? 'ON' : 'OFF'}`);
       }
     }
 
@@ -311,19 +297,6 @@ export class FanAccessory {
     this.persistState();
     this.scheduleCommand(DPS_LIGHT, next);
     this.log.debug(`${this.accessory.displayName}:`, `setLightOn() => ${next ? 'ON' : 'OFF'}`);
-  }
-
-  getBeepOn() {
-    this.log.debug(`${this.accessory.displayName}:`, `getBeepOn() => ${this.beepState.On ? 'ON' : 'OFF'}`);
-    return this.beepState.On;
-  }
-
-  setBeepOn(value: CharacteristicValue) {
-    const next = value as boolean;
-    this.beepState.On = next;
-    this.persistState();
-    this.scheduleCommand(DPS_BEEP, next);
-    this.log.debug(`${this.accessory.displayName}:`, `setBeepOn() => ${next ? 'ON' : 'OFF'}`);
   }
 
 }

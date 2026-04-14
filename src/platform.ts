@@ -6,7 +6,7 @@ export interface FanConfiguration {
   id: string;
   key: string;
   name: string;
-  hasBeep?: boolean;
+  beep?: boolean;
 }
 
 export interface PersistedFanState {
@@ -19,15 +19,10 @@ export interface PersistedLightState {
   On: boolean;
 }
 
-export interface PersistedBeepState {
-  On: boolean;
-}
-
 export type PlatformAccessoryContext = {
   device: FanConfiguration;
   fanState?: PersistedFanState;
   lightState?: PersistedLightState;
-  beepState?: PersistedBeepState;
 };
 
 
