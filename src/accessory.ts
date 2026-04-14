@@ -6,7 +6,6 @@ import TuyAPI from 'tuyapi';
 export class FanAccessory {
   private readonly fanService: Service;
   private readonly lightService: Service;
-  private readonly toggleLightService: Service;
   private readonly Characteristic: typeof Characteristic;
   private readonly log: Logging;
   private readonly tuyaDevice: TuyaDevice;
@@ -50,11 +49,12 @@ export class FanAccessory {
     this.lightService.getCharacteristic(this.Characteristic.On)
       .onGet(this.getLightOn.bind(this))
       .onSet(this.setLightOn.bind(this));
-    this.toggleLightService = this.accessory.getService(this.platform.Service.Switch) || this.accessory.addService(this.platform.Service.Switch);
-    this.toggleLightService.setCharacteristic(this.Characteristic.Name, `${accessory.context.device.name} Toggle Light`);
-    this.toggleLightService.getCharacteristic(this.Characteristic.On)
-      .onGet(this.getLightOn.bind(this))
-      .onSet(this.toggleLightOn.bind(this));
+
+    // Remove legacy Toggle Light switch service from cached accessories
+    const legacyToggleSwitch = this.accessory.getService(this.platform.Service.Switch);
+    if (legacyToggleSwitch) {
+      this.accessory.removeService(legacyToggleSwitch);
+    }
 
     this.tuyaDevice = new TuyAPI({ id: accessory.context.device.id, key: accessory.context.device.key });
     this.tuyaDevice.on('disconnected', () => {
@@ -115,13 +115,4 @@ export class FanAccessory {
     this.log.debug(`${this.accessory.displayName}:`, `setLightOn() => ${this.lightState.On ? 'ON' : 'OFF'}`);
   }
 
-  toggleLightOn(value: CharacteristicValue) {
-    this.lightState.On = !this.lightState.On;
-    if (value !== this.lightState.On) {
-      this.lightService.updateCharacteristic(this.Characteristic.On, this.lightState.On);
-      this.toggleLightService.updateCharacteristic(this.Characteristic.On, this.lightState.On);
-    }
-    this.sendCommand(20, this.lightState.On);
-    this.log.debug(`${this.accessory.displayName}:`, `toggleLightOn() => ${this.lightState.On ? 'ON' : 'OFF'}`);
-  }
 }
