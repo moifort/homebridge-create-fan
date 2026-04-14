@@ -21,10 +21,10 @@ jobs:
         with:
           node-version: 22.x
 
-      - name: Install latest npm via corepack
+      - name: Install npm 11 via corepack (required for OIDC Trusted Publishing)
         run: |
           corepack enable
-          corepack prepare npm@latest --activate
+          corepack prepare npm@11 --activate
           npm --version
 
       - name: Create minimal .npmrc for OIDC (no _authToken)
