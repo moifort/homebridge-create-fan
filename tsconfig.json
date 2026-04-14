@@ -6,9 +6,10 @@
       "ES2022"
     ],
     "rootDir": "src",
-    "module": "ES2022",
-    "moduleResolution": "node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "strict": true,
+    "skipLibCheck": true,
     "declaration": true,
     "outDir": "dist",
     "sourceMap": true,
