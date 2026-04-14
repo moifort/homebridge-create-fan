@@ -119,6 +119,7 @@ export class FanAccessory {
         this.accessory.getServiceById(this.platform.Service.Switch, FAN_TOGGLE_SUBTYPE)
         || this.accessory.addService(this.platform.Service.Switch, fanToggleName, FAN_TOGGLE_SUBTYPE);
       this.fanToggleService.setCharacteristic(this.Characteristic.Name, fanToggleName);
+      this.fanToggleService.setCharacteristic(this.Characteristic.ConfiguredName, fanToggleName);
       this.fanToggleService.getCharacteristic(this.Characteristic.On)
         .onGet(() => false)
         .onSet(this.handleFanToggle.bind(this));
@@ -128,6 +129,7 @@ export class FanAccessory {
         this.accessory.getServiceById(this.platform.Service.Switch, LIGHT_TOGGLE_SUBTYPE)
         || this.accessory.addService(this.platform.Service.Switch, lightToggleName, LIGHT_TOGGLE_SUBTYPE);
       this.lightToggleService.setCharacteristic(this.Characteristic.Name, lightToggleName);
+      this.lightToggleService.setCharacteristic(this.Characteristic.ConfiguredName, lightToggleName);
       this.lightToggleService.getCharacteristic(this.Characteristic.On)
         .onGet(() => false)
         .onSet(this.handleLightToggle.bind(this));
