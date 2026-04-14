@@ -60,7 +60,11 @@ export class FanAccessory {
       this.accessory.removeService(legacyToggleSwitch);
     }
 
-    this.tuyaDevice = new TuyAPI({ id: accessory.context.device.id, key: accessory.context.device.key });
+    this.tuyaDevice = new TuyAPI({
+      id: accessory.context.device.id,
+      key: accessory.context.device.key,
+      issueRefreshOnConnect: true,
+    });
     this.tuyaDevice.on('disconnected', () => {
       this.log.info(`${this.accessory.displayName}:`,'Disconnected');
       this.isConnected = false;
@@ -71,6 +75,8 @@ export class FanAccessory {
       this.isConnected = true;
     });
     this.tuyaDevice.on('error', error => this.log.warn(`${this.accessory.displayName}:`,`Error -> ${error.toString()}`));
+    this.tuyaDevice.on('data', data => this.applyDps(data?.dps));
+    this.tuyaDevice.on('dp-refresh', data => this.applyDps(data?.dps));
     this.connect();
   }
 
@@ -94,6 +100,36 @@ export class FanAccessory {
     this.accessory.context.fanState = { Active: this.fanState.Active };
     this.accessory.context.lightState = { On: this.lightState.On };
     this.platform.api.updatePlatformAccessories([this.accessory]);
+  }
+
+  private applyDps(dps: Record<string, unknown> | undefined) {
+    if (!dps) {
+      return;
+    }
+    let changed = false;
+
+    const lightDps = dps['20'];
+    if (typeof lightDps === 'boolean' && lightDps !== this.lightState.On) {
+      this.lightState.On = lightDps;
+      this.lightService.updateCharacteristic(this.Characteristic.On, lightDps);
+      changed = true;
+      this.log.debug(`${this.accessory.displayName}:`, `Tuya -> light ${lightDps ? 'ON' : 'OFF'}`);
+    }
+
+    const fanDps = dps['60'];
+    if (typeof fanDps === 'boolean') {
+      const nextActive: 0 | 1 = fanDps ? 1 : 0;
+      if (nextActive !== this.fanState.Active) {
+        this.fanState.Active = nextActive;
+        this.fanService.updateCharacteristic(this.Characteristic.Active, nextActive);
+        changed = true;
+        this.log.debug(`${this.accessory.displayName}:`, `Tuya -> fan ${nextActive === 1 ? 'ACTIVE' : 'INACTIVE'}`);
+      }
+    }
+
+    if (changed) {
+      this.persistState();
+    }
   }
 
   getFanActivity() {
