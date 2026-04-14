@@ -40,6 +40,13 @@
               "title": "Beep on command (v2 only)",
               "description": "Enable or disable the audible beep the fan emits on each command. Leave unset to not touch the device (recommended for v1 models which do not expose this Tuya DP). Applied once per Tuya reconnect.",
               "required": false
+            },
+            "toggles": {
+              "type": "boolean",
+              "title": "Expose toggle switches",
+              "description": "Adds two momentary HomeKit Switch tiles (fan toggle + light toggle) that invert the current state in one tap. Ideal to bind to a physical HomeKit button automation. Default: on.",
+              "default": true,
+              "required": false
             }
           }
         }

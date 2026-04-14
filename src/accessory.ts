@@ -14,6 +14,9 @@ const DPS_FAN_SPEED = 62;
 const DPS_FAN_DIRECTION = 63;
 const DPS_BEEP = 66;
 const BEEP_SUBTYPE = 'beep';
+const FAN_TOGGLE_SUBTYPE = 'fan-toggle';
+const LIGHT_TOGGLE_SUBTYPE = 'light-toggle';
+const TOGGLE_RESET_MS = 300;
 
 const FAN_SPEED_MIN = 1;
 const FAN_SPEED_MAX = 6;
@@ -34,6 +37,8 @@ const stepToPercent = (step: number): number =>
 export class FanAccessory {
   private readonly fanService: Service;
   private readonly lightService: Service;
+  private readonly fanToggleService?: Service;
+  private readonly lightToggleService?: Service;
   private readonly Characteristic: typeof Characteristic;
   private readonly log: Logging;
   private readonly tuyaDevice: TuyaDevice;
@@ -99,9 +104,40 @@ export class FanAccessory {
     }
 
     // Remove legacy Toggle Light switch service (no subtype) from cached accessories
-    const legacyToggleSwitch = this.accessory.getService(this.platform.Service.Switch);
-    if (legacyToggleSwitch) {
-      this.accessory.removeService(legacyToggleSwitch);
+    const legacyToggleSwitches = this.accessory.services.filter(
+      service => service.UUID === this.platform.Service.Switch.UUID && !service.subtype,
+    );
+    for (const legacy of legacyToggleSwitches) {
+      this.accessory.removeService(legacy);
+    }
+
+    // Momentary toggle switches (default on). Each press inverts the current state then auto-resets to OFF.
+    const togglesEnabled = accessory.context.device.toggles !== false;
+    if (togglesEnabled) {
+      const fanToggleName = `${accessory.context.device.name} Fan Toggle`;
+      this.fanToggleService =
+        this.accessory.getServiceById(this.platform.Service.Switch, FAN_TOGGLE_SUBTYPE)
+        || this.accessory.addService(this.platform.Service.Switch, fanToggleName, FAN_TOGGLE_SUBTYPE);
+      this.fanToggleService.setCharacteristic(this.Characteristic.Name, fanToggleName);
+      this.fanToggleService.getCharacteristic(this.Characteristic.On)
+        .onGet(() => false)
+        .onSet(this.handleFanToggle.bind(this));
+
+      const lightToggleName = `${accessory.context.device.name} Light Toggle`;
+      this.lightToggleService =
+        this.accessory.getServiceById(this.platform.Service.Switch, LIGHT_TOGGLE_SUBTYPE)
+        || this.accessory.addService(this.platform.Service.Switch, lightToggleName, LIGHT_TOGGLE_SUBTYPE);
+      this.lightToggleService.setCharacteristic(this.Characteristic.Name, lightToggleName);
+      this.lightToggleService.getCharacteristic(this.Characteristic.On)
+        .onGet(() => false)
+        .onSet(this.handleLightToggle.bind(this));
+    } else {
+      for (const subtype of [FAN_TOGGLE_SUBTYPE, LIGHT_TOGGLE_SUBTYPE]) {
+        const stale = this.accessory.getServiceById(this.platform.Service.Switch, subtype);
+        if (stale) {
+          this.accessory.removeService(stale);
+        }
+      }
     }
 
     this.tuyaDevice = new TuyAPI({
@@ -297,6 +333,32 @@ export class FanAccessory {
     this.persistState();
     this.scheduleCommand(DPS_LIGHT, next);
     this.log.debug(`${this.accessory.displayName}:`, `setLightOn() => ${next ? 'ON' : 'OFF'}`);
+  }
+
+  private handleFanToggle(value: CharacteristicValue) {
+    if (value !== true) {
+      return;
+    }
+    const next: 0 | 1 = this.fanState.Active === 1 ? 0 : 1;
+    this.log.debug(`${this.accessory.displayName}:`, `handleFanToggle() => ${this.fanState.Active} -> ${next}`);
+    this.setFanActivity(next === 1 ? this.Characteristic.Active.ACTIVE : this.Characteristic.Active.INACTIVE);
+    this.fanService.updateCharacteristic(this.Characteristic.Active, next);
+    setTimeout(() => {
+      this.fanToggleService?.updateCharacteristic(this.Characteristic.On, false);
+    }, TOGGLE_RESET_MS);
+  }
+
+  private handleLightToggle(value: CharacteristicValue) {
+    if (value !== true) {
+      return;
+    }
+    const next = !this.lightState.On;
+    this.log.debug(`${this.accessory.displayName}:`, `handleLightToggle() => ${this.lightState.On} -> ${next}`);
+    this.setLightOn(next);
+    this.lightService.updateCharacteristic(this.Characteristic.On, next);
+    setTimeout(() => {
+      this.lightToggleService?.updateCharacteristic(this.Characteristic.On, false);
+    }, TOGGLE_RESET_MS);
   }
 
 }

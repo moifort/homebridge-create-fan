@@ -7,6 +7,7 @@ export interface FanConfiguration {
   key: string;
   name: string;
   beep?: boolean;
+  toggles?: boolean;
 }
 
 export interface PersistedFanState {
