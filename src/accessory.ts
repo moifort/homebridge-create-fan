@@ -8,9 +8,15 @@ type DpsPrimitive = string | number | boolean;
 const WRITE_DEBOUNCE_MS = 250;
 const ECHO_SUPPRESS_MS = 1500;
 
+const DPS_LIGHT = 20;
+const DPS_FAN = 60;
+const DPS_BEEP = 66;
+const BEEP_SUBTYPE = 'beep';
+
 export class FanAccessory {
   private readonly fanService: Service;
   private readonly lightService: Service;
+  private readonly beepService?: Service;
   private readonly Characteristic: typeof Characteristic;
   private readonly log: Logging;
   private readonly tuyaDevice: TuyaDevice;
@@ -18,6 +24,7 @@ export class FanAccessory {
   private isConnected = false;
   private fanState: { Active: 0 | 1; Rotation: CharacteristicValue; Speed: number };
   private lightState: { On: boolean; Brightness: number };
+  private beepState: { On: boolean };
   private readonly pendingWrites = new Map<number, { value: DpsPrimitive; timer: NodeJS.Timeout }>();
   private readonly recentWrites = new Map<number, { value: DpsPrimitive; at: number }>();
 
@@ -37,6 +44,9 @@ export class FanAccessory {
     this.lightState = {
       On: accessory.context.lightState?.On ?? false,
       Brightness: 60,
+    };
+    this.beepState = {
+      On: accessory.context.beepState?.On ?? true,
     };
 
     this.log.info(`${accessory.displayName}:`, 'Init...');
@@ -61,7 +71,22 @@ export class FanAccessory {
       .onGet(this.getLightOn.bind(this))
       .onSet(this.setLightOn.bind(this));
 
-    // Remove legacy Toggle Light switch service from cached accessories
+    // Beep — add or remove based on config (default enabled, v1 users opt out)
+    const beepEnabled = accessory.context.device.hasBeep !== false;
+    const existingBeep = this.accessory.getServiceById(this.platform.Service.Switch, BEEP_SUBTYPE);
+    if (beepEnabled) {
+      const beepName = `${accessory.context.device.name} Beep`;
+      this.beepService = existingBeep
+        ?? this.accessory.addService(this.platform.Service.Switch, beepName, BEEP_SUBTYPE);
+      this.beepService.setCharacteristic(this.Characteristic.Name, beepName);
+      this.beepService.getCharacteristic(this.Characteristic.On)
+        .onGet(this.getBeepOn.bind(this))
+        .onSet(this.setBeepOn.bind(this));
+    } else if (existingBeep) {
+      this.accessory.removeService(existingBeep);
+    }
+
+    // Remove legacy Toggle Light switch service (no subtype) from cached accessories
     const legacyToggleSwitch = this.accessory.getService(this.platform.Service.Switch);
     if (legacyToggleSwitch) {
       this.accessory.removeService(legacyToggleSwitch);
@@ -129,6 +154,7 @@ export class FanAccessory {
   private persistState() {
     this.accessory.context.fanState = { Active: this.fanState.Active };
     this.accessory.context.lightState = { On: this.lightState.On };
+    this.accessory.context.beepState = { On: this.beepState.On };
     this.platform.api.updatePlatformAccessories([this.accessory]);
   }
 
@@ -138,22 +164,32 @@ export class FanAccessory {
     }
     let changed = false;
 
-    const lightDps = dps['20'];
-    if (typeof lightDps === 'boolean' && !this.shouldIgnoreEcho(20, lightDps) && lightDps !== this.lightState.On) {
+    const lightDps = dps[String(DPS_LIGHT)];
+    if (typeof lightDps === 'boolean' && !this.shouldIgnoreEcho(DPS_LIGHT, lightDps) && lightDps !== this.lightState.On) {
       this.lightState.On = lightDps;
       this.lightService.updateCharacteristic(this.Characteristic.On, lightDps);
       changed = true;
       this.log.debug(`${this.accessory.displayName}:`, `Tuya -> light ${lightDps ? 'ON' : 'OFF'}`);
     }
 
-    const fanDps = dps['60'];
-    if (typeof fanDps === 'boolean' && !this.shouldIgnoreEcho(60, fanDps)) {
+    const fanDps = dps[String(DPS_FAN)];
+    if (typeof fanDps === 'boolean' && !this.shouldIgnoreEcho(DPS_FAN, fanDps)) {
       const nextActive: 0 | 1 = fanDps ? 1 : 0;
       if (nextActive !== this.fanState.Active) {
         this.fanState.Active = nextActive;
         this.fanService.updateCharacteristic(this.Characteristic.Active, nextActive);
         changed = true;
         this.log.debug(`${this.accessory.displayName}:`, `Tuya -> fan ${nextActive === 1 ? 'ACTIVE' : 'INACTIVE'}`);
+      }
+    }
+
+    if (this.beepService) {
+      const beepDps = dps[String(DPS_BEEP)];
+      if (typeof beepDps === 'boolean' && !this.shouldIgnoreEcho(DPS_BEEP, beepDps) && beepDps !== this.beepState.On) {
+        this.beepState.On = beepDps;
+        this.beepService.updateCharacteristic(this.Characteristic.On, beepDps);
+        changed = true;
+        this.log.debug(`${this.accessory.displayName}:`, `Tuya -> beep ${beepDps ? 'ON' : 'OFF'}`);
       }
     }
 
@@ -171,7 +207,7 @@ export class FanAccessory {
     const next: 0 | 1 = value === this.Characteristic.Active.ACTIVE ? 1 : 0;
     this.fanState.Active = next;
     this.persistState();
-    this.scheduleCommand(60, next === 1);
+    this.scheduleCommand(DPS_FAN, next === 1);
     this.log.debug(`${this.accessory.displayName}:`, `setFanActivity() => ${next === 0 ? 'INACTIVE' : 'ACTIVE'}`);
   }
 
@@ -184,8 +220,21 @@ export class FanAccessory {
     const next = value as boolean;
     this.lightState.On = next;
     this.persistState();
-    this.scheduleCommand(20, next);
+    this.scheduleCommand(DPS_LIGHT, next);
     this.log.debug(`${this.accessory.displayName}:`, `setLightOn() => ${next ? 'ON' : 'OFF'}`);
+  }
+
+  getBeepOn() {
+    this.log.debug(`${this.accessory.displayName}:`, `getBeepOn() => ${this.beepState.On ? 'ON' : 'OFF'}`);
+    return this.beepState.On;
+  }
+
+  setBeepOn(value: CharacteristicValue) {
+    const next = value as boolean;
+    this.beepState.On = next;
+    this.persistState();
+    this.scheduleCommand(DPS_BEEP, next);
+    this.log.debug(`${this.accessory.displayName}:`, `setBeepOn() => ${next ? 'ON' : 'OFF'}`);
   }
 
 }
