@@ -43,8 +43,8 @@
             },
             "toggles": {
               "type": "boolean",
-              "title": "Expose toggle switches",
-              "description": "Adds two momentary HomeKit Switch tiles (fan toggle + light toggle) that invert the current state in one tap. Ideal to bind to a physical HomeKit button automation. Default: on.",
+              "title": "Expose toggle tiles",
+              "description": "Adds two momentary tiles — a fan-icon tile and a bulb-icon tile — that invert the current state in one tap. Ideal as automation targets for a physical HomeKit button. Default: on.",
               "default": true,
               "required": false
             }

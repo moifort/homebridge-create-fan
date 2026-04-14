@@ -111,34 +111,45 @@ export class FanAccessory {
       this.accessory.removeService(legacy);
     }
 
-    // Momentary toggle switches (default on). Each press inverts the current state then auto-resets to OFF.
+    // Legacy cleanup: remove previous Switch-based toggles introduced in v2.0.16/v2.0.17
+    for (const legacySwitchToggle of this.accessory.services.filter(
+      service => service.UUID === this.platform.Service.Switch.UUID
+        && (service.subtype === FAN_TOGGLE_SUBTYPE || service.subtype === LIGHT_TOGGLE_SUBTYPE),
+    )) {
+      this.accessory.removeService(legacySwitchToggle);
+    }
+
+    // Momentary toggle tiles (default on). Use Fanv2/Lightbulb service types so Apple Home renders
+    // the fan and bulb icons. Each press inverts the current state then auto-resets.
     const togglesEnabled = accessory.context.device.toggles !== false;
     if (togglesEnabled) {
       const fanToggleName = `${accessory.context.device.name} Fan Toggle`;
       this.fanToggleService =
-        this.accessory.getServiceById(this.platform.Service.Switch, FAN_TOGGLE_SUBTYPE)
-        || this.accessory.addService(this.platform.Service.Switch, fanToggleName, FAN_TOGGLE_SUBTYPE);
+        this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_TOGGLE_SUBTYPE)
+        || this.accessory.addService(this.platform.Service.Fanv2, fanToggleName, FAN_TOGGLE_SUBTYPE);
       this.fanToggleService.setCharacteristic(this.Characteristic.Name, fanToggleName);
       this.fanToggleService.setCharacteristic(this.Characteristic.ConfiguredName, fanToggleName);
-      this.fanToggleService.getCharacteristic(this.Characteristic.On)
-        .onGet(() => false)
+      this.fanToggleService.getCharacteristic(this.Characteristic.Active)
+        .onGet(() => this.Characteristic.Active.INACTIVE)
         .onSet(this.handleFanToggle.bind(this));
 
       const lightToggleName = `${accessory.context.device.name} Light Toggle`;
       this.lightToggleService =
-        this.accessory.getServiceById(this.platform.Service.Switch, LIGHT_TOGGLE_SUBTYPE)
-        || this.accessory.addService(this.platform.Service.Switch, lightToggleName, LIGHT_TOGGLE_SUBTYPE);
+        this.accessory.getServiceById(this.platform.Service.Lightbulb, LIGHT_TOGGLE_SUBTYPE)
+        || this.accessory.addService(this.platform.Service.Lightbulb, lightToggleName, LIGHT_TOGGLE_SUBTYPE);
       this.lightToggleService.setCharacteristic(this.Characteristic.Name, lightToggleName);
       this.lightToggleService.setCharacteristic(this.Characteristic.ConfiguredName, lightToggleName);
       this.lightToggleService.getCharacteristic(this.Characteristic.On)
         .onGet(() => false)
         .onSet(this.handleLightToggle.bind(this));
     } else {
-      for (const subtype of [FAN_TOGGLE_SUBTYPE, LIGHT_TOGGLE_SUBTYPE]) {
-        const stale = this.accessory.getServiceById(this.platform.Service.Switch, subtype);
-        if (stale) {
-          this.accessory.removeService(stale);
-        }
+      const fanStale = this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_TOGGLE_SUBTYPE);
+      if (fanStale) {
+        this.accessory.removeService(fanStale);
+      }
+      const lightStale = this.accessory.getServiceById(this.platform.Service.Lightbulb, LIGHT_TOGGLE_SUBTYPE);
+      if (lightStale) {
+        this.accessory.removeService(lightStale);
       }
     }
 
@@ -338,7 +349,7 @@ export class FanAccessory {
   }
 
   private handleFanToggle(value: CharacteristicValue) {
-    if (value !== true) {
+    if (value !== this.Characteristic.Active.ACTIVE) {
       return;
     }
     const next: 0 | 1 = this.fanState.Active === 1 ? 0 : 1;
@@ -346,7 +357,7 @@ export class FanAccessory {
     this.setFanActivity(next === 1 ? this.Characteristic.Active.ACTIVE : this.Characteristic.Active.INACTIVE);
     this.fanService.updateCharacteristic(this.Characteristic.Active, next);
     setTimeout(() => {
-      this.fanToggleService?.updateCharacteristic(this.Characteristic.On, false);
+      this.fanToggleService?.updateCharacteristic(this.Characteristic.Active, this.Characteristic.Active.INACTIVE);
     }, TOGGLE_RESET_MS);
   }
 
