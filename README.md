@@ -4,11 +4,10 @@
 # CREATE Ceiling Fan
 
 Control your CREATE Ceiling Fan from HomeKit.
-- Turn on/off
-- Set speed
-- Set rotation direction
-- Set light on/off
-- Set light brightness
+- Turn fan on/off
+- Adjust fan speed (6 steps, shown as a slider in the Home app)
+- Turn light on/off
+- Mute/unmute the beep (v2 only, optional)
 
 ![homekit-1.png](readme/homekit-1.png)
 ![homekit-2.png](readme/homekit-2.png)
