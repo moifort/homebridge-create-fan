@@ -20,10 +20,14 @@ Go to the Homebridge UI, Plugins screen and search for `homebridge-create-ceilin
 
 ### Optional
 
-If you set `withToggle` to `true`, it will add a new accessory with only switch. This feature allow you to use switch with
-on click action.
+#### Beep switch (v2 only)
 
-![toggle.gif](readme%2Ftoggle.gif)
+Ceiling Fan **v2** (`Ceiling Fan/Light`) exposes a `fan_beep` Tuya DP that makes the unit emit an
+audible beep on every command. A **Beep** switch is added in HomeKit by default so you can mute or
+re-enable it from the Home app. Toggle it OFF to silence the beep.
+
+If you own the original Ceiling Fan (v1) which does not expose this DP, set `hasBeep: false` on
+the device in your config to hide the switch.
 
 
 ## Configuration
