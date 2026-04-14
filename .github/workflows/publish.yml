@@ -27,6 +27,9 @@ jobs:
           corepack prepare npm@latest --activate
           npm --version
 
+      - name: Create minimal .npmrc for OIDC (no _authToken)
+        run: echo "registry=https://registry.npmjs.org/" > .npmrc
+
       - name: Install dependencies
         run: npm ci
 
