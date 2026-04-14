@@ -10,8 +10,18 @@ const ECHO_SUPPRESS_MS = 1500;
 
 const DPS_LIGHT = 20;
 const DPS_FAN = 60;
+const DPS_FAN_SPEED = 62;
 const DPS_BEEP = 66;
 const BEEP_SUBTYPE = 'beep';
+
+const FAN_SPEED_MIN = 1;
+const FAN_SPEED_MAX = 6;
+
+const percentToStep = (percent: number): number =>
+  Math.min(FAN_SPEED_MAX, Math.max(FAN_SPEED_MIN, Math.ceil(percent / (100 / FAN_SPEED_MAX))));
+
+const stepToPercent = (step: number): number =>
+  Math.round((Math.min(FAN_SPEED_MAX, Math.max(FAN_SPEED_MIN, step)) / FAN_SPEED_MAX) * 100);
 
 export class FanAccessory {
   private readonly fanService: Service;
@@ -22,7 +32,7 @@ export class FanAccessory {
   private readonly tuyaDevice: TuyaDevice;
   private isConnecting = false;
   private isConnected = false;
-  private fanState: { Active: 0 | 1; Rotation: CharacteristicValue; Speed: number };
+  private fanState: { Active: 0 | 1; RotationSpeed: number };
   private lightState: { On: boolean; Brightness: number };
   private beepState: { On: boolean };
   private readonly pendingWrites = new Map<number, { value: DpsPrimitive; timer: NodeJS.Timeout }>();
@@ -38,8 +48,7 @@ export class FanAccessory {
     // Restore last known state from Homebridge persistent context (survives restarts)
     this.fanState = {
       Active: accessory.context.fanState?.Active ?? 0,
-      Rotation: 0 as CharacteristicValue, // 0 = Clockwise, 1 = Counter-Clockwise
-      Speed: 20,
+      RotationSpeed: accessory.context.fanState?.RotationSpeed ?? 3,
     };
     this.lightState = {
       On: accessory.context.lightState?.On ?? false,
@@ -64,6 +73,10 @@ export class FanAccessory {
     this.fanService.getCharacteristic(this.Characteristic.Active)
       .onGet(this.getFanActivity.bind(this))
       .onSet(this.setFanActivity.bind(this));
+    this.fanService.getCharacteristic(this.Characteristic.RotationSpeed)
+      .setProps({ minValue: 0, maxValue: 100, minStep: 100 / FAN_SPEED_MAX })
+      .onGet(this.getRotationSpeed.bind(this))
+      .onSet(this.setRotationSpeed.bind(this));
 
     // Light
     this.lightService = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
@@ -152,7 +165,10 @@ export class FanAccessory {
   }
 
   private persistState() {
-    this.accessory.context.fanState = { Active: this.fanState.Active };
+    this.accessory.context.fanState = {
+      Active: this.fanState.Active,
+      RotationSpeed: this.fanState.RotationSpeed,
+    };
     this.accessory.context.lightState = { On: this.lightState.On };
     this.accessory.context.beepState = { On: this.beepState.On };
     this.platform.api.updatePlatformAccessories([this.accessory]);
@@ -183,6 +199,15 @@ export class FanAccessory {
       }
     }
 
+    const speedDps = dps[String(DPS_FAN_SPEED)];
+    if (typeof speedDps === 'number' && speedDps >= FAN_SPEED_MIN && speedDps <= FAN_SPEED_MAX
+        && !this.shouldIgnoreEcho(DPS_FAN_SPEED, speedDps) && speedDps !== this.fanState.RotationSpeed) {
+      this.fanState.RotationSpeed = speedDps;
+      this.fanService.updateCharacteristic(this.Characteristic.RotationSpeed, stepToPercent(speedDps));
+      changed = true;
+      this.log.debug(`${this.accessory.displayName}:`, `Tuya -> fan speed ${speedDps}/${FAN_SPEED_MAX}`);
+    }
+
     if (this.beepService) {
       const beepDps = dps[String(DPS_BEEP)];
       if (typeof beepDps === 'boolean' && !this.shouldIgnoreEcho(DPS_BEEP, beepDps) && beepDps !== this.beepState.On) {
@@ -209,6 +234,29 @@ export class FanAccessory {
     this.persistState();
     this.scheduleCommand(DPS_FAN, next === 1);
     this.log.debug(`${this.accessory.displayName}:`, `setFanActivity() => ${next === 0 ? 'INACTIVE' : 'ACTIVE'}`);
+  }
+
+  getRotationSpeed() {
+    const percent = stepToPercent(this.fanState.RotationSpeed);
+    this.log.debug(`${this.accessory.displayName}:`, `getRotationSpeed() => ${percent}% (step ${this.fanState.RotationSpeed}/${FAN_SPEED_MAX})`);
+    return percent;
+  }
+
+  setRotationSpeed(value: CharacteristicValue) {
+    const percent = value as number;
+    // iOS Home drives on/off through the Active characteristic — ignore 0 to preserve the last step.
+    if (percent <= 0) {
+      this.log.debug(`${this.accessory.displayName}:`, 'setRotationSpeed(0%) ignored — Active handles on/off');
+      return;
+    }
+    const step = percentToStep(percent);
+    if (step === this.fanState.RotationSpeed) {
+      return;
+    }
+    this.fanState.RotationSpeed = step;
+    this.persistState();
+    this.scheduleCommand(DPS_FAN_SPEED, step);
+    this.log.debug(`${this.accessory.displayName}:`, `setRotationSpeed() => ${percent}% (step ${step}/${FAN_SPEED_MAX})`);
   }
 
   getLightOn() {
