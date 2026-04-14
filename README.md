@@ -6,6 +6,7 @@
 Control your CREATE Ceiling Fan from HomeKit.
 - Turn fan on/off
 - Adjust fan speed (6 steps, shown as a slider in the Home app)
+- Reverse rotation direction (summer/winter mode)
 - Turn light on/off
 - Mute/unmute the beep (v2 only, optional)
 

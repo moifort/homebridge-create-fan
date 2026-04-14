@@ -11,11 +11,19 @@ const ECHO_SUPPRESS_MS = 1500;
 const DPS_LIGHT = 20;
 const DPS_FAN = 60;
 const DPS_FAN_SPEED = 62;
+const DPS_FAN_DIRECTION = 63;
 const DPS_BEEP = 66;
 const BEEP_SUBTYPE = 'beep';
 
 const FAN_SPEED_MIN = 1;
 const FAN_SPEED_MAX = 6;
+
+const FAN_DIRECTION_FORWARD = 'forward';
+const FAN_DIRECTION_REVERSE = 'reverse';
+type FanDirectionDps = typeof FAN_DIRECTION_FORWARD | typeof FAN_DIRECTION_REVERSE;
+
+const isFanDirectionDps = (value: unknown): value is FanDirectionDps =>
+  value === FAN_DIRECTION_FORWARD || value === FAN_DIRECTION_REVERSE;
 
 const percentToStep = (percent: number): number =>
   Math.min(FAN_SPEED_MAX, Math.max(FAN_SPEED_MIN, Math.ceil(percent / (100 / FAN_SPEED_MAX))));
@@ -32,7 +40,7 @@ export class FanAccessory {
   private readonly tuyaDevice: TuyaDevice;
   private isConnecting = false;
   private isConnected = false;
-  private fanState: { Active: 0 | 1; RotationSpeed: number };
+  private fanState: { Active: 0 | 1; RotationSpeed: number; RotationDirection: 0 | 1 };
   private lightState: { On: boolean; Brightness: number };
   private beepState: { On: boolean };
   private readonly pendingWrites = new Map<number, { value: DpsPrimitive; timer: NodeJS.Timeout }>();
@@ -49,6 +57,7 @@ export class FanAccessory {
     this.fanState = {
       Active: accessory.context.fanState?.Active ?? 0,
       RotationSpeed: accessory.context.fanState?.RotationSpeed ?? 3,
+      RotationDirection: accessory.context.fanState?.RotationDirection ?? 0,
     };
     this.lightState = {
       On: accessory.context.lightState?.On ?? false,
@@ -77,6 +86,9 @@ export class FanAccessory {
       .setProps({ minValue: 0, maxValue: 100, minStep: 100 / FAN_SPEED_MAX })
       .onGet(this.getRotationSpeed.bind(this))
       .onSet(this.setRotationSpeed.bind(this));
+    this.fanService.getCharacteristic(this.Characteristic.RotationDirection)
+      .onGet(this.getRotationDirection.bind(this))
+      .onSet(this.setRotationDirection.bind(this));
 
     // Light
     this.lightService = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
@@ -168,6 +180,7 @@ export class FanAccessory {
     this.accessory.context.fanState = {
       Active: this.fanState.Active,
       RotationSpeed: this.fanState.RotationSpeed,
+      RotationDirection: this.fanState.RotationDirection,
     };
     this.accessory.context.lightState = { On: this.lightState.On };
     this.accessory.context.beepState = { On: this.beepState.On };
@@ -206,6 +219,17 @@ export class FanAccessory {
       this.fanService.updateCharacteristic(this.Characteristic.RotationSpeed, stepToPercent(speedDps));
       changed = true;
       this.log.debug(`${this.accessory.displayName}:`, `Tuya -> fan speed ${speedDps}/${FAN_SPEED_MAX}`);
+    }
+
+    const directionDps = dps[String(DPS_FAN_DIRECTION)];
+    if (isFanDirectionDps(directionDps) && !this.shouldIgnoreEcho(DPS_FAN_DIRECTION, directionDps)) {
+      const nextDirection: 0 | 1 = directionDps === FAN_DIRECTION_FORWARD ? 0 : 1;
+      if (nextDirection !== this.fanState.RotationDirection) {
+        this.fanState.RotationDirection = nextDirection;
+        this.fanService.updateCharacteristic(this.Characteristic.RotationDirection, nextDirection);
+        changed = true;
+        this.log.debug(`${this.accessory.displayName}:`, `Tuya -> fan direction ${directionDps}`);
+      }
     }
 
     if (this.beepService) {
@@ -257,6 +281,23 @@ export class FanAccessory {
     this.persistState();
     this.scheduleCommand(DPS_FAN_SPEED, step);
     this.log.debug(`${this.accessory.displayName}:`, `setRotationSpeed() => ${percent}% (step ${step}/${FAN_SPEED_MAX})`);
+  }
+
+  getRotationDirection() {
+    this.log.debug(`${this.accessory.displayName}:`, `getRotationDirection() => ${this.fanState.RotationDirection === 0 ? 'CLOCKWISE' : 'COUNTER_CLOCKWISE'}`);
+    return this.fanState.RotationDirection;
+  }
+
+  setRotationDirection(value: CharacteristicValue) {
+    const next: 0 | 1 = value === this.Characteristic.RotationDirection.COUNTER_CLOCKWISE ? 1 : 0;
+    if (next === this.fanState.RotationDirection) {
+      return;
+    }
+    this.fanState.RotationDirection = next;
+    this.persistState();
+    const dpsValue: FanDirectionDps = next === 0 ? FAN_DIRECTION_FORWARD : FAN_DIRECTION_REVERSE;
+    this.scheduleCommand(DPS_FAN_DIRECTION, dpsValue);
+    this.log.debug(`${this.accessory.displayName}:`, `setRotationDirection() => ${dpsValue}`);
   }
 
   getLightOn() {

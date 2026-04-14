@@ -12,6 +12,7 @@ export interface FanConfiguration {
 export interface PersistedFanState {
   Active: 0 | 1;
   RotationSpeed?: number;
+  RotationDirection?: 0 | 1;
 }
 
 export interface PersistedLightState {
