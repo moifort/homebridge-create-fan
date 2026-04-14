@@ -3,6 +3,11 @@ import { HomebridgeCreateCeilingFan, PlatformAccessoryContext } from './platform
 import type TuyaDevice from 'tuyapi';
 import TuyAPI from 'tuyapi';
 
+type DpsPrimitive = string | number | boolean;
+
+const WRITE_DEBOUNCE_MS = 250;
+const ECHO_SUPPRESS_MS = 1500;
+
 export class FanAccessory {
   private readonly fanService: Service;
   private readonly lightService: Service;
@@ -13,6 +18,8 @@ export class FanAccessory {
   private isConnected = false;
   private fanState: { Active: 0 | 1; Rotation: CharacteristicValue; Speed: number };
   private lightState: { On: boolean; Brightness: number };
+  private readonly pendingWrites = new Map<number, { value: DpsPrimitive; timer: NodeJS.Timeout }>();
+  private readonly recentWrites = new Map<number, { value: DpsPrimitive; at: number }>();
 
   constructor(
     private readonly platform: HomebridgeCreateCeilingFan,
@@ -91,9 +98,32 @@ export class FanAccessory {
     this.isConnecting = false;
   }
 
-  sendCommand(dps: number, value: string | number | boolean) {
-    this.log.debug(`${this.accessory.displayName}:`, `sendCommand(${dps}, ${value})`);
-    this.tuyaDevice.set({ dps, set: value });
+  private scheduleCommand(dps: number, value: DpsPrimitive) {
+    const existing = this.pendingWrites.get(dps);
+    if (existing) {
+      clearTimeout(existing.timer);
+    }
+    const timer = setTimeout(() => {
+      this.pendingWrites.delete(dps);
+      this.recentWrites.set(dps, { value, at: Date.now() });
+      this.log.debug(`${this.accessory.displayName}:`, `sendCommand(${dps}, ${value})`);
+      this.tuyaDevice.set({ dps, set: value }).catch(err =>
+        this.log.warn(`${this.accessory.displayName}:`, `set dps ${dps} failed -> ${err}`),
+      );
+    }, WRITE_DEBOUNCE_MS);
+    this.pendingWrites.set(dps, { value, timer });
+  }
+
+  private shouldIgnoreEcho(dps: number, incoming: DpsPrimitive): boolean {
+    const recent = this.recentWrites.get(dps);
+    if (!recent) {
+      return false;
+    }
+    if (Date.now() - recent.at > ECHO_SUPPRESS_MS) {
+      this.recentWrites.delete(dps);
+      return false;
+    }
+    return recent.value !== incoming;
   }
 
   private persistState() {
@@ -109,7 +139,7 @@ export class FanAccessory {
     let changed = false;
 
     const lightDps = dps['20'];
-    if (typeof lightDps === 'boolean' && lightDps !== this.lightState.On) {
+    if (typeof lightDps === 'boolean' && !this.shouldIgnoreEcho(20, lightDps) && lightDps !== this.lightState.On) {
       this.lightState.On = lightDps;
       this.lightService.updateCharacteristic(this.Characteristic.On, lightDps);
       changed = true;
@@ -117,7 +147,7 @@ export class FanAccessory {
     }
 
     const fanDps = dps['60'];
-    if (typeof fanDps === 'boolean') {
+    if (typeof fanDps === 'boolean' && !this.shouldIgnoreEcho(60, fanDps)) {
       const nextActive: 0 | 1 = fanDps ? 1 : 0;
       if (nextActive !== this.fanState.Active) {
         this.fanState.Active = nextActive;
@@ -141,7 +171,7 @@ export class FanAccessory {
     const next: 0 | 1 = value === this.Characteristic.Active.ACTIVE ? 1 : 0;
     this.fanState.Active = next;
     this.persistState();
-    this.sendCommand(60, next === 1);
+    this.scheduleCommand(60, next === 1);
     this.log.debug(`${this.accessory.displayName}:`, `setFanActivity() => ${next === 0 ? 'INACTIVE' : 'ACTIVE'}`);
   }
 
@@ -154,7 +184,7 @@ export class FanAccessory {
     const next = value as boolean;
     this.lightState.On = next;
     this.persistState();
-    this.sendCommand(20, next);
+    this.scheduleCommand(20, next);
     this.log.debug(`${this.accessory.displayName}:`, `setLightOn() => ${next ? 'ON' : 'OFF'}`);
   }
 
