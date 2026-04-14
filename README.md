@@ -9,6 +9,7 @@ Control your CREATE Ceiling Fan from HomeKit.
 - Reverse rotation direction (summer/winter mode)
 - Turn light on/off
 - Silence the beep via config (v2 only)
+- Momentary toggle switches for fan and light — perfect for physical HomeKit buttons
 
 ![homekit-1.png](readme/homekit-1.png)
 ![homekit-2.png](readme/homekit-2.png)
@@ -34,6 +35,24 @@ Ceiling Fan (v1), which does not expose this Tuya DP.
   "platform": "HomebridgeCreateCeilingFan",
   "devices": [
     { "id": "…", "key": "…", "name": "Ceiling Fan", "beep": false }
+  ]
+}
+```
+
+#### Toggle switches for physical buttons
+
+The plugin exposes two extra momentary Switch tiles — **Fan Toggle** and **Light Toggle** — that
+invert the current state of the fan or the light in a single tap, then auto-reset. Bind them to a
+physical HomeKit button automation (Aqara, Eve, Hue, Lutron, Flic, etc.) for a snappier single-press
+toggle than a conditional Shortcut.
+
+Set `toggles: false` on the device to hide them. Default is `true`.
+
+```json
+{
+  "platform": "HomebridgeCreateCeilingFan",
+  "devices": [
+    { "id": "…", "key": "…", "name": "Ceiling Fan", "toggles": false }
   ]
 }
 ```
