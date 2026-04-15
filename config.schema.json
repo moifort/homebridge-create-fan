@@ -43,8 +43,8 @@
             },
             "toggles": {
               "type": "boolean",
-              "title": "Expose toggle tiles",
-              "description": "Adds two momentary tiles — a fan-icon tile and a bulb-icon tile — that invert the current state in one tap. Ideal as automation targets for a physical HomeKit button. Default: on.",
+              "title": "Expose stateless button tiles",
+              "description": "Adds two Stateless Programmable Switch tiles that render as 'Button' category tiles in Apple Home. Default: on. Note: Apple Home cannot tap these nor target them as automation actions — they are placeholders.",
               "default": true,
               "required": false
             }
