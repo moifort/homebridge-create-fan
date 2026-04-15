@@ -35,12 +35,6 @@
               "description": "Name of the fan",
               "required": true
             },
-            "beep": {
-              "type": "boolean",
-              "title": "Beep on command (v2 only)",
-              "description": "Enable or disable the audible beep the fan emits on each command. Leave unset to not touch the device (recommended for v1 models which do not expose this Tuya DP). Applied once per Tuya reconnect.",
-              "required": false
-            },
             "toggles": {
               "type": "boolean",
               "title": "Expose stateless button tiles",

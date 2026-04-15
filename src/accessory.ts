@@ -12,8 +12,6 @@ const DPS_LIGHT = 20;
 const DPS_FAN = 60;
 const DPS_FAN_SPEED = 62;
 const DPS_FAN_DIRECTION = 63;
-const DPS_BEEP = 66;
-const BEEP_SUBTYPE = 'beep';
 const FAN_TOGGLE_SUBTYPE = 'fan-toggle';
 const LIGHT_TOGGLE_SUBTYPE = 'light-toggle';
 
@@ -65,7 +63,6 @@ export class FanAccessory {
       On: accessory.context.lightState?.On ?? false,
       Brightness: 60,
     };
-    delete (accessory.context as { beepState?: unknown }).beepState;
 
     this.log.info(`${accessory.displayName}:`, 'Init...');
 
@@ -95,12 +92,6 @@ export class FanAccessory {
     this.lightService.getCharacteristic(this.Characteristic.On)
       .onGet(this.getLightOn.bind(this))
       .onSet(this.setLightOn.bind(this));
-
-    // Remove legacy Beep switch service from cached accessories — beep is now driven by config
-    const legacyBeepSwitch = this.accessory.getServiceById(this.platform.Service.Switch, BEEP_SUBTYPE);
-    if (legacyBeepSwitch) {
-      this.accessory.removeService(legacyBeepSwitch);
-    }
 
     // Remove legacy Toggle Light switch service (no subtype) from cached accessories
     const legacyToggleSwitches = this.accessory.services.filter(
@@ -159,7 +150,6 @@ export class FanAccessory {
     this.tuyaDevice.on('connected', () => {
       this.log.info(`${this.accessory.displayName}:`,'Connected!');
       this.isConnected = true;
-      this.applyBeepConfig();
     });
     this.tuyaDevice.on('error', error => this.log.warn(`${this.accessory.displayName}:`,`Error -> ${error.toString()}`));
     this.tuyaDevice.on('data', data => this.applyDps(data?.dps));
@@ -173,9 +163,14 @@ export class FanAccessory {
     }
     this.isConnecting = true;
     this.log.info(`${this.accessory.displayName}:`, 'Connecting...');
-    await this.tuyaDevice.find();
-    await this.tuyaDevice.connect();
-    this.isConnecting = false;
+    try {
+      await this.tuyaDevice.find();
+      await this.tuyaDevice.connect();
+    } catch (err) {
+      this.log.warn(`${this.accessory.displayName}:`, `connect failed -> ${err}`);
+    } finally {
+      this.isConnecting = false;
+    }
   }
 
   private scheduleCommand(dps: number, value: DpsPrimitive) {
@@ -214,15 +209,6 @@ export class FanAccessory {
     };
     this.accessory.context.lightState = { On: this.lightState.On };
     this.platform.api.updatePlatformAccessories([this.accessory]);
-  }
-
-  private applyBeepConfig() {
-    const configured = this.accessory.context.device.beep;
-    if (configured === undefined) {
-      return;
-    }
-    this.log.debug(`${this.accessory.displayName}:`, `applying config beep -> ${configured ? 'ON' : 'OFF'}`);
-    this.scheduleCommand(DPS_BEEP, configured);
   }
 
   private applyDps(dps: Record<string, unknown> | undefined) {

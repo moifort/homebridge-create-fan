@@ -6,7 +6,6 @@ export interface FanConfiguration {
   id: string;
   key: string;
   name: string;
-  beep?: boolean;
   toggles?: boolean;
 }
 

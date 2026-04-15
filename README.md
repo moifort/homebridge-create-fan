@@ -8,7 +8,6 @@ Control your CREATE Ceiling Fan from HomeKit.
 - Adjust fan speed (6 steps, shown as a slider in the Home app)
 - Reverse rotation direction (summer/winter mode)
 - Turn light on/off
-- Silence the beep via config (v2 only)
 - Stateless Programmable Switch tiles (rendered as "Button" category in Apple Home)
 
 ![homekit-1.png](readme/homekit-1.png)
@@ -20,24 +19,6 @@ Go to the Homebridge UI, Plugins screen and search for `homebridge-create-ceilin
 
 
 ### Optional
-
-#### Silence the beep (v2 only)
-
-Ceiling Fan **v2** (`Ceiling Fan/Light`) emits an audible beep on every command. Set `beep: false`
-on the device in your Homebridge config to silence it; set `beep: true` to re-enable it. The value
-is pushed to the fan on every Tuya reconnect.
-
-Leave the key unset to let the plugin leave the beep untouched — recommended for the original
-Ceiling Fan (v1), which does not expose this Tuya DP.
-
-```json
-{
-  "platform": "HomebridgeCreateCeilingFan",
-  "devices": [
-    { "id": "…", "key": "…", "name": "Ceiling Fan", "beep": false }
-  ]
-}
-```
 
 #### Stateless button tiles
 
