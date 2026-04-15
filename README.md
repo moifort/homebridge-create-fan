@@ -22,9 +22,10 @@ Go to the Homebridge UI, Plugins screen and search for `homebridge-create-ceilin
 
 #### Toggle tiles
 
-The plugin exposes two extra `Switch` services that act as momentary toggles: tap the tile in the
-Home app (or trigger it from an automation) and the plugin flips the fan or light state, then
-resets the tile back to OFF. Perfect for a single-press "toggle" button on a HomeKit remote.
+The plugin exposes two extra momentary toggles, named `Toggle` and rendered with the Apple Home
+fan and light-bulb icons. Tap the tile in the Home app (or trigger it from an automation) and the
+plugin flips the fan or light state, then resets the tile back to OFF. Perfect for a single-press
+"toggle" button on a HomeKit remote.
 
 Set `toggles: false` on the device to hide them. Default is `true`.
 

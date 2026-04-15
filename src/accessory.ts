@@ -74,8 +74,10 @@ export class FanAccessory {
       .setCharacteristic(this.Characteristic.Name, accessory.context.device.name)
       .setCharacteristic(this.Characteristic.SerialNumber, accessory.context.device.id);
 
-    // Fan
-    this.fanService = this.accessory.getService(this.platform.Service.Fanv2) || this.accessory.addService(this.platform.Service.Fanv2);
+    // Fan (main service: explicit no-subtype filter to avoid collision with the Fanv2 toggle)
+    this.fanService = this.accessory.services.find(
+      service => service.UUID === this.platform.Service.Fanv2.UUID && !service.subtype,
+    ) ?? this.accessory.addService(this.platform.Service.Fanv2);
     this.fanService.setCharacteristic(this.Characteristic.Name, accessory.context.device.name);
     this.fanService.getCharacteristic(this.Characteristic.Active)
       .onGet(this.getFanActivity.bind(this))
@@ -88,8 +90,10 @@ export class FanAccessory {
       .onGet(this.getRotationDirection.bind(this))
       .onSet(this.setRotationDirection.bind(this));
 
-    // Light
-    this.lightService = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
+    // Light (main service: explicit no-subtype filter to avoid collision with the Lightbulb toggle)
+    this.lightService = this.accessory.services.find(
+      service => service.UUID === this.platform.Service.Lightbulb.UUID && !service.subtype,
+    ) ?? this.accessory.addService(this.platform.Service.Lightbulb);
     this.lightService.getCharacteristic(this.Characteristic.On)
       .onGet(this.getLightOn.bind(this))
       .onSet(this.setLightOn.bind(this));
@@ -102,10 +106,9 @@ export class FanAccessory {
       this.accessory.removeService(legacy);
     }
 
-    // Legacy cleanup: remove previous toggle services (v2.0.18 Fanv2/Lightbulb, v2.0.19 StatelessProgrammableSwitch)
+    // Legacy cleanup: drop previous toggle services (v2.0.16/v2.0.20 Switch, v2.0.19 StatelessProgrammableSwitch)
     const legacyToggleTypes = [
-      this.platform.Service.Fanv2.UUID,
-      this.platform.Service.Lightbulb.UUID,
+      this.platform.Service.Switch.UUID,
       this.platform.Service.StatelessProgrammableSwitch.UUID,
     ];
     for (const legacy of this.accessory.services.filter(
@@ -115,29 +118,32 @@ export class FanAccessory {
       this.accessory.removeService(legacy);
     }
 
-    // Stateful Switch tiles used as momentary toggles. Tap in Home (or trigger from an
-    // automation) -> flips the underlying fan/light state, then resets the switch to OFF.
+    // Momentary toggle tiles: a secondary Fanv2 (fan icon) and Lightbulb (bulb icon).
+    // Tap in Home (or trigger from an automation) -> flips the underlying fan/light state,
+    // then auto-resets the tile after a short delay.
     const togglesEnabled = accessory.context.device.toggles !== false;
     if (togglesEnabled) {
       this.fanToggleService =
-        this.accessory.getServiceById(this.platform.Service.Switch, FAN_TOGGLE_SUBTYPE)
-        || this.accessory.addService(this.platform.Service.Switch, accessory.context.device.name, FAN_TOGGLE_SUBTYPE);
-      this.fanToggleService.getCharacteristic(this.Characteristic.On)
-        .onGet(() => false)
+        this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_TOGGLE_SUBTYPE)
+        || this.accessory.addService(this.platform.Service.Fanv2, 'Toggle', FAN_TOGGLE_SUBTYPE);
+      this.fanToggleService.setCharacteristic(this.Characteristic.Name, 'Toggle');
+      this.fanToggleService.getCharacteristic(this.Characteristic.Active)
+        .onGet(() => 0 as 0 | 1)
         .onSet(this.onFanToggle.bind(this));
 
       this.lightToggleService =
-        this.accessory.getServiceById(this.platform.Service.Switch, LIGHT_TOGGLE_SUBTYPE)
-        || this.accessory.addService(this.platform.Service.Switch, accessory.context.device.name, LIGHT_TOGGLE_SUBTYPE);
+        this.accessory.getServiceById(this.platform.Service.Lightbulb, LIGHT_TOGGLE_SUBTYPE)
+        || this.accessory.addService(this.platform.Service.Lightbulb, 'Toggle', LIGHT_TOGGLE_SUBTYPE);
+      this.lightToggleService.setCharacteristic(this.Characteristic.Name, 'Toggle');
       this.lightToggleService.getCharacteristic(this.Characteristic.On)
         .onGet(() => false)
         .onSet(this.onLightToggle.bind(this));
     } else {
-      const fanStale = this.accessory.getServiceById(this.platform.Service.Switch, FAN_TOGGLE_SUBTYPE);
+      const fanStale = this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_TOGGLE_SUBTYPE);
       if (fanStale) {
         this.accessory.removeService(fanStale);
       }
-      const lightStale = this.accessory.getServiceById(this.platform.Service.Switch, LIGHT_TOGGLE_SUBTYPE);
+      const lightStale = this.accessory.getServiceById(this.platform.Service.Lightbulb, LIGHT_TOGGLE_SUBTYPE);
       if (lightStale) {
         this.accessory.removeService(lightStale);
       }
@@ -278,7 +284,7 @@ export class FanAccessory {
     this.fanService.updateCharacteristic(this.Characteristic.Active, next);
     this.log.debug(`${this.accessory.displayName}:`, `onFanToggle() => ${next === 1 ? 'ACTIVE' : 'INACTIVE'}`);
     setTimeout(() => {
-      this.fanToggleService?.updateCharacteristic(this.Characteristic.On, false);
+      this.fanToggleService?.updateCharacteristic(this.Characteristic.Active, 0);
     }, TOGGLE_RESET_MS);
   }
 
