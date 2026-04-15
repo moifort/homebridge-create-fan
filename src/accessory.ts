@@ -7,6 +7,7 @@ type DpsPrimitive = string | number | boolean;
 
 const WRITE_DEBOUNCE_MS = 250;
 const ECHO_SUPPRESS_MS = 1500;
+const TOGGLE_RESET_MS = 500;
 
 const DPS_LIGHT = 20;
 const DPS_FAN = 60;
@@ -101,11 +102,11 @@ export class FanAccessory {
       this.accessory.removeService(legacy);
     }
 
-    // Legacy cleanup: remove previous toggle services (v2.0.16 Switch-based, v2.0.18 Fanv2/Lightbulb)
+    // Legacy cleanup: remove previous toggle services (v2.0.18 Fanv2/Lightbulb, v2.0.19 StatelessProgrammableSwitch)
     const legacyToggleTypes = [
-      this.platform.Service.Switch.UUID,
       this.platform.Service.Fanv2.UUID,
       this.platform.Service.Lightbulb.UUID,
+      this.platform.Service.StatelessProgrammableSwitch.UUID,
     ];
     for (const legacy of this.accessory.services.filter(
       service => legacyToggleTypes.includes(service.UUID)
@@ -114,24 +115,29 @@ export class FanAccessory {
       this.accessory.removeService(legacy);
     }
 
-    // Stateless programmable switch tiles (default on). Appear as "Button" category tiles
-    // in Apple Home. They expose ProgrammableSwitchEvent and do not respond to taps nor to
-    // automation actions — they are visual/trigger placeholders as requested.
+    // Stateful Switch tiles used as momentary toggles. Tap in Home (or trigger from an
+    // automation) -> flips the underlying fan/light state, then resets the switch to OFF.
     const togglesEnabled = accessory.context.device.toggles !== false;
     if (togglesEnabled) {
       this.fanToggleService =
-        this.accessory.getServiceById(this.platform.Service.StatelessProgrammableSwitch, FAN_TOGGLE_SUBTYPE)
-        || this.accessory.addService(this.platform.Service.StatelessProgrammableSwitch, accessory.context.device.name, FAN_TOGGLE_SUBTYPE);
+        this.accessory.getServiceById(this.platform.Service.Switch, FAN_TOGGLE_SUBTYPE)
+        || this.accessory.addService(this.platform.Service.Switch, accessory.context.device.name, FAN_TOGGLE_SUBTYPE);
+      this.fanToggleService.getCharacteristic(this.Characteristic.On)
+        .onGet(() => false)
+        .onSet(this.onFanToggle.bind(this));
 
       this.lightToggleService =
-        this.accessory.getServiceById(this.platform.Service.StatelessProgrammableSwitch, LIGHT_TOGGLE_SUBTYPE)
-        || this.accessory.addService(this.platform.Service.StatelessProgrammableSwitch, accessory.context.device.name, LIGHT_TOGGLE_SUBTYPE);
+        this.accessory.getServiceById(this.platform.Service.Switch, LIGHT_TOGGLE_SUBTYPE)
+        || this.accessory.addService(this.platform.Service.Switch, accessory.context.device.name, LIGHT_TOGGLE_SUBTYPE);
+      this.lightToggleService.getCharacteristic(this.Characteristic.On)
+        .onGet(() => false)
+        .onSet(this.onLightToggle.bind(this));
     } else {
-      const fanStale = this.accessory.getServiceById(this.platform.Service.StatelessProgrammableSwitch, FAN_TOGGLE_SUBTYPE);
+      const fanStale = this.accessory.getServiceById(this.platform.Service.Switch, FAN_TOGGLE_SUBTYPE);
       if (fanStale) {
         this.accessory.removeService(fanStale);
       }
-      const lightStale = this.accessory.getServiceById(this.platform.Service.StatelessProgrammableSwitch, LIGHT_TOGGLE_SUBTYPE);
+      const lightStale = this.accessory.getServiceById(this.platform.Service.Switch, LIGHT_TOGGLE_SUBTYPE);
       if (lightStale) {
         this.accessory.removeService(lightStale);
       }
@@ -259,6 +265,36 @@ export class FanAccessory {
     if (changed) {
       this.persistState();
     }
+  }
+
+  private onFanToggle(value: CharacteristicValue) {
+    if (!value) {
+      return;
+    }
+    const next: 0 | 1 = this.fanState.Active === 1 ? 0 : 1;
+    this.fanState.Active = next;
+    this.persistState();
+    this.scheduleCommand(DPS_FAN, next === 1);
+    this.fanService.updateCharacteristic(this.Characteristic.Active, next);
+    this.log.debug(`${this.accessory.displayName}:`, `onFanToggle() => ${next === 1 ? 'ACTIVE' : 'INACTIVE'}`);
+    setTimeout(() => {
+      this.fanToggleService?.updateCharacteristic(this.Characteristic.On, false);
+    }, TOGGLE_RESET_MS);
+  }
+
+  private onLightToggle(value: CharacteristicValue) {
+    if (!value) {
+      return;
+    }
+    const next = !this.lightState.On;
+    this.lightState.On = next;
+    this.persistState();
+    this.scheduleCommand(DPS_LIGHT, next);
+    this.lightService.updateCharacteristic(this.Characteristic.On, next);
+    this.log.debug(`${this.accessory.displayName}:`, `onLightToggle() => ${next ? 'ON' : 'OFF'}`);
+    setTimeout(() => {
+      this.lightToggleService?.updateCharacteristic(this.Characteristic.On, false);
+    }, TOGGLE_RESET_MS);
   }
 
   getFanActivity() {

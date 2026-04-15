@@ -8,7 +8,7 @@ Control your CREATE Ceiling Fan from HomeKit.
 - Adjust fan speed (6 steps, shown as a slider in the Home app)
 - Reverse rotation direction (summer/winter mode)
 - Turn light on/off
-- Stateless Programmable Switch tiles (rendered as "Button" category in Apple Home)
+- Momentary toggle tiles (tap to flip the fan/light state, automation-friendly)
 
 ![homekit-1.png](readme/homekit-1.png)
 ![homekit-2.png](readme/homekit-2.png)
@@ -20,13 +20,11 @@ Go to the Homebridge UI, Plugins screen and search for `homebridge-create-ceilin
 
 ### Optional
 
-#### Stateless button tiles
+#### Toggle tiles
 
-The plugin exposes two extra Stateless Programmable Switch services that Apple Home renders as
-"Button" category tiles. Note: these tiles cannot be tapped from the Home app nor targeted as
-automation actions — they are placeholders. To actually toggle the fan or the light from a physical
-HomeKit button, point the automation at `Ceiling Fan (Active)` or `Ceiling Light (On)` directly,
-using a Shortcut with `If` logic if you need a single-press toggle.
+The plugin exposes two extra `Switch` services that act as momentary toggles: tap the tile in the
+Home app (or trigger it from an automation) and the plugin flips the fan or light state, then
+resets the tile back to OFF. Perfect for a single-press "toggle" button on a HomeKit remote.
 
 Set `toggles: false` on the device to hide them. Default is `true`.
 
