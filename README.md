@@ -9,7 +9,7 @@ Control your CREATE Ceiling Fan from HomeKit.
 - Reverse rotation direction (summer/winter mode)
 - Turn light on/off
 - Silence the beep via config (v2 only)
-- Momentary toggle tiles (fan-icon + bulb-icon) — perfect as automation targets for physical HomeKit buttons
+- Stateless Programmable Switch tiles (rendered as "Button" category in Apple Home)
 
 ![homekit-1.png](readme/homekit-1.png)
 ![homekit-2.png](readme/homekit-2.png)
@@ -39,12 +39,13 @@ Ceiling Fan (v1), which does not expose this Tuya DP.
 }
 ```
 
-#### Toggle tiles for physical buttons
+#### Stateless button tiles
 
-The plugin exposes two extra momentary tiles — **Fan Toggle** (fan icon) and **Light Toggle**
-(bulb icon) — that invert the current state of the fan or the light in a single tap, then
-auto-reset. Bind them to a physical HomeKit button automation (Aqara, Eve, Hue, Lutron, Flic, etc.)
-for a snappier single-press toggle than a conditional Shortcut.
+The plugin exposes two extra Stateless Programmable Switch services that Apple Home renders as
+"Button" category tiles. Note: these tiles cannot be tapped from the Home app nor targeted as
+automation actions — they are placeholders. To actually toggle the fan or the light from a physical
+HomeKit button, point the automation at `Ceiling Fan (Active)` or `Ceiling Light (On)` directly,
+using a Shortcut with `If` logic if you need a single-press toggle.
 
 Set `toggles: false` on the device to hide them. Default is `true`.
 
