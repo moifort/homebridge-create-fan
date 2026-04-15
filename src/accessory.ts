@@ -8,6 +8,7 @@ type DpsPrimitive = string | number | boolean;
 const WRITE_DEBOUNCE_MS = 250;
 const ECHO_SUPPRESS_MS = 1500;
 const TOGGLE_RESET_MS = 500;
+const RECONNECT_BACKOFF_MS = [5_000, 10_000, 30_000, 60_000] as const;
 
 const DPS_LIGHT = 20;
 const DPS_FAN = 60;
@@ -42,6 +43,8 @@ export class FanAccessory {
   private readonly tuyaDevice: TuyaDevice;
   private isConnecting = false;
   private isConnected = false;
+  private reconnectTimer?: NodeJS.Timeout;
+  private reconnectAttempts = 0;
   private fanState: { Active: 0 | 1; RotationSpeed: number; RotationDirection: 0 | 1 };
   private lightState: { On: boolean; Brightness: number };
   private readonly pendingWrites = new Map<number, { value: DpsPrimitive; timer: NodeJS.Timeout }>();
@@ -157,13 +160,22 @@ export class FanAccessory {
     this.tuyaDevice.on('disconnected', () => {
       this.log.info(`${this.accessory.displayName}:`,'Disconnected');
       this.isConnected = false;
-      this.connect();
+      this.scheduleReconnect();
     });
     this.tuyaDevice.on('connected', () => {
       this.log.info(`${this.accessory.displayName}:`,'Connected!');
       this.isConnected = true;
+      this.reconnectAttempts = 0;
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = undefined;
+      }
     });
-    this.tuyaDevice.on('error', error => this.log.warn(`${this.accessory.displayName}:`,`Error -> ${error.toString()}`));
+    this.tuyaDevice.on('error', error => {
+      this.log.warn(`${this.accessory.displayName}:`, `Error -> ${error.toString()}`);
+      this.isConnected = false;
+      this.scheduleReconnect();
+    });
     this.tuyaDevice.on('data', data => this.applyDps(data?.dps));
     this.tuyaDevice.on('dp-refresh', data => this.applyDps(data?.dps));
     this.connect();
@@ -180,9 +192,26 @@ export class FanAccessory {
       await this.tuyaDevice.connect();
     } catch (err) {
       this.log.warn(`${this.accessory.displayName}:`, `connect failed -> ${err}`);
+      this.scheduleReconnect();
     } finally {
       this.isConnecting = false;
     }
+  }
+
+  private scheduleReconnect() {
+    if (this.isConnected || this.isConnecting || this.reconnectTimer) {
+      return;
+    }
+    const delay = RECONNECT_BACKOFF_MS[Math.min(this.reconnectAttempts, RECONNECT_BACKOFF_MS.length - 1)];
+    this.reconnectAttempts += 1;
+    this.log.info(
+      `${this.accessory.displayName}:`,
+      `Reconnect scheduled in ${delay / 1000}s (attempt ${this.reconnectAttempts})`,
+    );
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = undefined;
+      this.connect();
+    }, delay);
   }
 
   private scheduleCommand(dps: number, value: DpsPrimitive) {
