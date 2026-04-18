@@ -9,6 +9,11 @@ const WRITE_DEBOUNCE_MS = 250;
 const ECHO_SUPPRESS_MS = 1500;
 const TOGGLE_RESET_MS = 500;
 const RECONNECT_BACKOFF_MS = [5_000, 10_000, 30_000, 60_000] as const;
+// A connection must stay error-free this long before we consider it stable
+// and reset the backoff. Tuya devices that flap (handshake OK -> immediate
+// RST) would otherwise reset the counter on every brief 'connected' event,
+// turning the exponential backoff into a tight 5s loop.
+const STABLE_CONNECTION_MS = 30_000;
 
 const DPS_LIGHT = 20;
 const DPS_FAN = 60;
@@ -44,6 +49,7 @@ export class FanAccessory {
   private isConnecting = false;
   private isConnected = false;
   private reconnectTimer?: NodeJS.Timeout;
+  private stabilityTimer?: NodeJS.Timeout;
   private reconnectAttempts = 0;
   private fanState: { Active: 0 | 1; RotationSpeed: number; RotationDirection: 0 | 1 };
   private lightState: { On: boolean; Brightness: number };
@@ -161,20 +167,35 @@ export class FanAccessory {
     this.tuyaDevice.on('disconnected', () => {
       this.log.info(`${this.accessory.displayName}:`,'Disconnected');
       this.isConnected = false;
+      this.cancelStabilityTimer();
       this.scheduleReconnect();
     });
     this.tuyaDevice.on('connected', () => {
       this.log.info(`${this.accessory.displayName}:`,'Connected!');
       this.isConnected = true;
-      this.reconnectAttempts = 0;
       if (this.reconnectTimer) {
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = undefined;
       }
+      // Don't reset the backoff yet — the device may RST in the next few ms.
+      // Only consider the connection stable after STABLE_CONNECTION_MS without
+      // an error or disconnect event.
+      this.cancelStabilityTimer();
+      this.stabilityTimer = setTimeout(() => {
+        this.stabilityTimer = undefined;
+        if (this.reconnectAttempts > 0) {
+          this.log.debug(
+            `${this.accessory.displayName}:`,
+            `Connection stable for ${STABLE_CONNECTION_MS / 1000}s — backoff reset`,
+          );
+        }
+        this.reconnectAttempts = 0;
+      }, STABLE_CONNECTION_MS);
     });
     this.tuyaDevice.on('error', error => {
       this.log.warn(`${this.accessory.displayName}:`, `Error -> ${error.toString()}`);
       this.isConnected = false;
+      this.cancelStabilityTimer();
       this.scheduleReconnect();
     });
     this.tuyaDevice.on('data', data => this.applyDps(data?.dps));
@@ -213,6 +234,13 @@ export class FanAccessory {
       this.reconnectTimer = undefined;
       this.connect();
     }, delay);
+  }
+
+  private cancelStabilityTimer() {
+    if (this.stabilityTimer) {
+      clearTimeout(this.stabilityTimer);
+      this.stabilityTimer = undefined;
+    }
   }
 
   private scheduleCommand(dps: number, value: DpsPrimitive) {
