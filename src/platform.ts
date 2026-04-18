@@ -9,6 +9,7 @@ export interface FanConfiguration {
   key: string;
   name: string;
   toggles?: boolean;
+  speedButtons?: boolean;
   version?: TuyaProtocolVersion;
 }
 

@@ -42,6 +42,13 @@
               "default": true,
               "required": false
             },
+            "speedButtons": {
+              "type": "boolean",
+              "title": "Expose speed up/down buttons",
+              "description": "Adds two Fan tiles (Speed Up / Speed Down). Single tap bumps the fan speed by one step (1-6). Speed Up turns the fan on if it was off; Speed Down turns it off when already at step 1. Default: on.",
+              "default": true,
+              "required": false
+            },
             "version": {
               "type": "string",
               "title": "Tuya protocol version",

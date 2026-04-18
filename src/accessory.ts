@@ -21,6 +21,8 @@ const DPS_FAN_SPEED = 62;
 const DPS_FAN_DIRECTION = 63;
 const FAN_TOGGLE_SUBTYPE = 'fan-toggle';
 const LIGHT_TOGGLE_SUBTYPE = 'light-toggle';
+const FAN_SPEED_UP_SUBTYPE = 'fan-speed-up';
+const FAN_SPEED_DOWN_SUBTYPE = 'fan-speed-down';
 
 const FAN_SPEED_MIN = 1;
 const FAN_SPEED_MAX = 6;
@@ -43,6 +45,8 @@ export class FanAccessory {
   private readonly lightService: Service;
   private readonly fanToggleService?: Service;
   private readonly lightToggleService?: Service;
+  private readonly fanSpeedUpService?: Service;
+  private readonly fanSpeedDownService?: Service;
   private readonly Characteristic: typeof Characteristic;
   private readonly log: Logging;
   private readonly tuyaDevice: TuyaDevice;
@@ -155,6 +159,37 @@ export class FanAccessory {
       const lightStale = this.accessory.getServiceById(this.platform.Service.Lightbulb, LIGHT_TOGGLE_SUBTYPE);
       if (lightStale) {
         this.accessory.removeService(lightStale);
+      }
+    }
+
+    // Speed step tiles: two secondary Fanv2 services (fan-speed-up, fan-speed-down).
+    // Tap in Home (or trigger from an automation) -> bumps the fan speed by one step.
+    // Speed Up powers the fan on from OFF; Speed Down powers it off when already at step 1.
+    const speedButtonsEnabled = accessory.context.device.speedButtons !== false;
+    if (speedButtonsEnabled) {
+      this.fanSpeedUpService =
+        this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_SPEED_UP_SUBTYPE)
+        || this.accessory.addService(this.platform.Service.Fanv2, 'Speed Up', FAN_SPEED_UP_SUBTYPE);
+      this.fanSpeedUpService.setCharacteristic(this.Characteristic.Name, 'Speed Up');
+      this.fanSpeedUpService.getCharacteristic(this.Characteristic.Active)
+        .onGet(() => 0 as 0 | 1)
+        .onSet(this.onSpeedUp.bind(this));
+
+      this.fanSpeedDownService =
+        this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_SPEED_DOWN_SUBTYPE)
+        || this.accessory.addService(this.platform.Service.Fanv2, 'Speed Down', FAN_SPEED_DOWN_SUBTYPE);
+      this.fanSpeedDownService.setCharacteristic(this.Characteristic.Name, 'Speed Down');
+      this.fanSpeedDownService.getCharacteristic(this.Characteristic.Active)
+        .onGet(() => 0 as 0 | 1)
+        .onSet(this.onSpeedDown.bind(this));
+    } else {
+      const upStale = this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_SPEED_UP_SUBTYPE);
+      if (upStale) {
+        this.accessory.removeService(upStale);
+      }
+      const downStale = this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_SPEED_DOWN_SUBTYPE);
+      if (downStale) {
+        this.accessory.removeService(downStale);
       }
     }
 
@@ -359,6 +394,72 @@ export class FanAccessory {
     setTimeout(() => {
       this.lightToggleService?.updateCharacteristic(this.Characteristic.On, false);
     }, TOGGLE_RESET_MS);
+  }
+
+  private onSpeedUp(value: CharacteristicValue) {
+    if (!value) {
+      return;
+    }
+    try {
+      if (this.fanState.Active === 0) {
+        // Fan OFF -> turn it ON at step 1
+        this.fanState.Active = 1;
+        this.fanState.RotationSpeed = FAN_SPEED_MIN;
+        this.persistState();
+        this.scheduleCommand(DPS_FAN, true);
+        this.scheduleCommand(DPS_FAN_SPEED, FAN_SPEED_MIN);
+        this.fanService.updateCharacteristic(this.Characteristic.Active, 1);
+        this.fanService.updateCharacteristic(this.Characteristic.RotationSpeed, stepToPercent(FAN_SPEED_MIN));
+        this.log.debug(`${this.accessory.displayName}:`, `onSpeedUp() => fan ON at step ${FAN_SPEED_MIN}/${FAN_SPEED_MAX}`);
+        return;
+      }
+      if (this.fanState.RotationSpeed >= FAN_SPEED_MAX) {
+        this.log.debug(`${this.accessory.displayName}:`, 'onSpeedUp() already at max');
+        return;
+      }
+      const step = this.fanState.RotationSpeed + 1;
+      this.fanState.RotationSpeed = step;
+      this.persistState();
+      this.scheduleCommand(DPS_FAN_SPEED, step);
+      this.fanService.updateCharacteristic(this.Characteristic.RotationSpeed, stepToPercent(step));
+      this.log.debug(`${this.accessory.displayName}:`, `onSpeedUp() => step ${step}/${FAN_SPEED_MAX}`);
+    } finally {
+      setTimeout(() => {
+        this.fanSpeedUpService?.updateCharacteristic(this.Characteristic.Active, 0);
+      }, TOGGLE_RESET_MS);
+    }
+  }
+
+  private onSpeedDown(value: CharacteristicValue) {
+    if (!value) {
+      return;
+    }
+    try {
+      if (this.fanState.Active === 0) {
+        this.log.debug(`${this.accessory.displayName}:`, 'onSpeedDown() fan off, no-op');
+        return;
+      }
+      if (this.fanState.RotationSpeed <= FAN_SPEED_MIN) {
+        // Already at min step -> turn the fan OFF (symmetric with Speed Up turning it ON from OFF).
+        // Keep RotationSpeed at FAN_SPEED_MIN so the next Speed Up resumes at step 1.
+        this.fanState.Active = 0;
+        this.persistState();
+        this.scheduleCommand(DPS_FAN, false);
+        this.fanService.updateCharacteristic(this.Characteristic.Active, 0);
+        this.log.debug(`${this.accessory.displayName}:`, 'onSpeedDown() at min => fan OFF');
+        return;
+      }
+      const step = this.fanState.RotationSpeed - 1;
+      this.fanState.RotationSpeed = step;
+      this.persistState();
+      this.scheduleCommand(DPS_FAN_SPEED, step);
+      this.fanService.updateCharacteristic(this.Characteristic.RotationSpeed, stepToPercent(step));
+      this.log.debug(`${this.accessory.displayName}:`, `onSpeedDown() => step ${step}/${FAN_SPEED_MAX}`);
+    } finally {
+      setTimeout(() => {
+        this.fanSpeedDownService?.updateCharacteristic(this.Characteristic.Active, 0);
+      }, TOGGLE_RESET_MS);
+    }
   }
 
   getFanActivity() {
