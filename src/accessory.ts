@@ -366,10 +366,12 @@ export class FanAccessory {
     }
   }
 
-  private onFanToggle(value: CharacteristicValue) {
-    if (!value) {
-      return;
-    }
+  // Momentary tile handlers: accept BOTH Active=1 (tap when tile OFF) AND Active=0 (tap when tile
+  // ON before the auto-reset has propagated). Filtering out value=0 caused rapid taps to appear as
+  // "first tap turns on, second tap turns off" with no underlying action. updateCharacteristic()
+  // does not invoke onSet, so the scheduled reset cannot re-enter these handlers.
+
+  private onFanToggle() {
     const next: 0 | 1 = this.fanState.Active === 1 ? 0 : 1;
     this.fanState.Active = next;
     this.persistState();
@@ -381,10 +383,7 @@ export class FanAccessory {
     }, TOGGLE_RESET_MS);
   }
 
-  private onLightToggle(value: CharacteristicValue) {
-    if (!value) {
-      return;
-    }
+  private onLightToggle() {
     const next = !this.lightState.On;
     this.lightState.On = next;
     this.persistState();
@@ -396,10 +395,7 @@ export class FanAccessory {
     }, TOGGLE_RESET_MS);
   }
 
-  private onSpeedUp(value: CharacteristicValue) {
-    if (!value) {
-      return;
-    }
+  private onSpeedUp() {
     try {
       if (this.fanState.Active === 0) {
         // Fan OFF -> turn it ON at step 1
@@ -430,10 +426,7 @@ export class FanAccessory {
     }
   }
 
-  private onSpeedDown(value: CharacteristicValue) {
-    if (!value) {
-      return;
-    }
+  private onSpeedDown() {
     try {
       if (this.fanState.Active === 0) {
         this.log.debug(`${this.accessory.displayName}:`, 'onSpeedDown() fan off, no-op');
