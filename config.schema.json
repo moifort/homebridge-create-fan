@@ -41,6 +41,14 @@
               "description": "Adds two Stateless Programmable Switch tiles that render as 'Button' category tiles in Apple Home. Default: on. Note: Apple Home cannot tap these nor target them as automation actions — they are placeholders.",
               "default": true,
               "required": false
+            },
+            "version": {
+              "type": "string",
+              "title": "Tuya protocol version",
+              "description": "Local protocol version used by the device. Most CREATE Ceiling Fan units (firmware 2023+) speak 3.4. Older units may need 3.3. Wrong value causes 'ECONNRESET' loops right after connecting.",
+              "enum": ["3.1", "3.2", "3.3", "3.4", "3.5"],
+              "default": "3.4",
+              "required": false
             }
           }
         }

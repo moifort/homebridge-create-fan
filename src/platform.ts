@@ -2,11 +2,14 @@ import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAcces
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 import { FanAccessory } from './accessory.js';
 
+export type TuyaProtocolVersion = '3.1' | '3.2' | '3.3' | '3.4' | '3.5';
+
 export interface FanConfiguration {
   id: string;
   key: string;
   name: string;
   toggles?: boolean;
+  version?: TuyaProtocolVersion;
 }
 
 export interface PersistedFanState {

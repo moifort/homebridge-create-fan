@@ -155,6 +155,7 @@ export class FanAccessory {
     this.tuyaDevice = new TuyAPI({
       id: accessory.context.device.id,
       key: accessory.context.device.key,
+      version: accessory.context.device.version ?? '3.4',
       issueRefreshOnConnect: true,
     });
     this.tuyaDevice.on('disconnected', () => {
