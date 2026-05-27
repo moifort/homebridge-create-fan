@@ -33,7 +33,7 @@ Set `toggles: false` on the device to hide them. Default is `true`.
 {
   "platform": "HomebridgeCreateCeilingFan",
   "devices": [
-    { "id": "…", "key": "…", "name": "Ceiling Fan", "toggles": false }
+    { "id": "…", "key": "…", "name": "Ceiling Fan", "ip": "192.168.1.100", "toggles": false }
   ]
 }
 ```
@@ -42,6 +42,17 @@ Set `toggles: false` on the device to hide them. Default is `true`.
 ## Configuration
 
 To get your `Id` and `Key` ceiling fan, follow the instructions [Getting your keys](https://github.com/jasonacox/tinytuya/tree/master#setup-wizard---getting-local-keys)
+
+Each device also requires a static `ip` address. Assign a fixed IP to each fan in your router (DHCP reservation) and add it to the config:
+
+```json
+{
+  "platform": "HomebridgeCreateCeilingFan",
+  "devices": [
+    { "id": "…", "key": "…", "name": "Ceiling Fan", "ip": "192.168.1.100" }
+  ]
+}
+```
 
 ## Thanks
 
