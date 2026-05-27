@@ -35,6 +35,12 @@
               "description": "Name of the fan",
               "required": true
             },
+            "ip": {
+              "type": "string",
+              "title": "IP Address",
+              "description": "Static IP address of the fan on the local network",
+              "required": true
+            },
             "toggles": {
               "type": "boolean",
               "title": "Expose stateless button tiles",

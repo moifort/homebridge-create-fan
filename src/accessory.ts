@@ -196,6 +196,7 @@ export class FanAccessory {
     this.tuyaDevice = new TuyAPI({
       id: accessory.context.device.id,
       key: accessory.context.device.key,
+      ip: accessory.context.device.ip,
       version: accessory.context.device.version ?? '3.4',
       issueRefreshOnConnect: true,
     });
@@ -245,7 +246,6 @@ export class FanAccessory {
     this.isConnecting = true;
     this.log.info(`${this.accessory.displayName}:`, 'Connecting...');
     try {
-      await this.tuyaDevice.find();
       await this.tuyaDevice.connect();
     } catch (err) {
       this.log.warn(`${this.accessory.displayName}:`, `connect failed -> ${err}`);

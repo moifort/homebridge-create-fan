@@ -8,6 +8,7 @@ export interface FanConfiguration {
   id: string;
   key: string;
   name: string;
+  ip: string;
   toggles?: boolean;
   speedButtons?: boolean;
   version?: TuyaProtocolVersion;
@@ -65,6 +66,7 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
       const existingFan = this.accessories.get(uuid);
       if (existingFan) {
         this.log.info('Platform:',`Restoring existing accessory from cache -> ${existingFan.displayName}`);
+        existingFan.context.device = fan;
         new FanAccessory(this, existingFan);
       } else {
         this.log.info('Platform:',`Adding new accessory -> ${fan.name}`);
