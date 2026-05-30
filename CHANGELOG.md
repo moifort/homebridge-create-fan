@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1
+
+- Fewer `ECONNRESET` reconnect storms when another local client (a second Homebridge instance, Home Assistant, the Tuya cloud) competes for the fan's single TCP connection
+- Writes issued while the fan is offline are now queued and flushed on reconnect, instead of forcing an out-of-backoff reconnect that caused `Timeout waiting for status response`
+- Reconnect backoff now has jitter and a longer ceiling so competing clients desynchronise
+
 ## 2.1.0
 
 - **Breaking:** each device now requires a static `ip` field in the config
