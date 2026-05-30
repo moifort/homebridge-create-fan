@@ -8,7 +8,14 @@ type DpsPrimitive = string | number | boolean;
 const WRITE_DEBOUNCE_MS = 250;
 const ECHO_SUPPRESS_MS = 1500;
 const TOGGLE_RESET_MS = 500;
-const RECONNECT_BACKOFF_MS = [5_000, 10_000, 30_000, 60_000] as const;
+const RECONNECT_BACKOFF_MS = [5_000, 10_000, 30_000, 60_000, 120_000] as const;
+// Randomised +/- fraction added to each backoff delay. Tuya devices accept a
+// single local TCP connection: when a second client (a stray Homebridge
+// instance, Home Assistant, the Tuya cloud keep-alive...) reconnects, the fan
+// RSTs ours, we reconnect and RST theirs, and so on. Without jitter both
+// clients retry in lockstep and the war never ends. Jitter desynchronises the
+// two so one side wins the connection and holds it.
+const RECONNECT_JITTER = 0.3;
 // A connection must stay error-free this long before we consider it stable
 // and reset the backoff. Tuya devices that flap (handshake OK -> immediate
 // RST) would otherwise reset the counter on every brief 'connected' event,
@@ -59,6 +66,11 @@ export class FanAccessory {
   private lightState: { On: boolean; Brightness: number };
   private readonly pendingWrites = new Map<number, { value: DpsPrimitive; timer: NodeJS.Timeout }>();
   private readonly recentWrites = new Map<number, { value: DpsPrimitive; at: number }>();
+  // Latest desired value per dps that could not be sent because the socket was
+  // down. Flushed once the device reconnects. Calling tuyaDevice.set() while
+  // disconnected makes tuyapi auto-connect *outside* our backoff, which feeds
+  // the reconnect war and produces 'Timeout waiting for status response'.
+  private readonly queuedWrites = new Map<number, DpsPrimitive>();
 
   constructor(
     private readonly platform: HomebridgeCreateCeilingFan,
@@ -213,6 +225,7 @@ export class FanAccessory {
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = undefined;
       }
+      this.flushQueuedWrites();
       // Don't reset the backoff yet — the device may RST in the next few ms.
       // Only consider the connection stable after STABLE_CONNECTION_MS without
       // an error or disconnect event.
@@ -259,11 +272,12 @@ export class FanAccessory {
     if (this.isConnected || this.isConnecting || this.reconnectTimer) {
       return;
     }
-    const delay = RECONNECT_BACKOFF_MS[Math.min(this.reconnectAttempts, RECONNECT_BACKOFF_MS.length - 1)];
+    const base = RECONNECT_BACKOFF_MS[Math.min(this.reconnectAttempts, RECONNECT_BACKOFF_MS.length - 1)];
+    const delay = Math.round(base * (1 + RECONNECT_JITTER * (Math.random() * 2 - 1)));
     this.reconnectAttempts += 1;
     this.log.info(
       `${this.accessory.displayName}:`,
-      `Reconnect scheduled in ${delay / 1000}s (attempt ${this.reconnectAttempts})`,
+      `Reconnect scheduled in ${(delay / 1000).toFixed(1)}s (attempt ${this.reconnectAttempts})`,
     );
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = undefined;
@@ -285,13 +299,42 @@ export class FanAccessory {
     }
     const timer = setTimeout(() => {
       this.pendingWrites.delete(dps);
-      this.recentWrites.set(dps, { value, at: Date.now() });
-      this.log.debug(`${this.accessory.displayName}:`, `sendCommand(${dps}, ${value})`);
-      this.tuyaDevice.set({ dps, set: value }).catch(err =>
-        this.log.warn(`${this.accessory.displayName}:`, `set dps ${dps} failed -> ${err}`),
-      );
+      if (!this.isConnected) {
+        // Don't let tuyapi auto-connect outside our backoff. Keep the latest
+        // desired value and flush it once 'connected' fires. HomeKit already
+        // shows the optimistic state from the onSet handler.
+        this.queuedWrites.set(dps, value);
+        this.log.debug(`${this.accessory.displayName}:`, `queued dps ${dps}=${value} until reconnect`);
+        return;
+      }
+      this.sendCommand(dps, value);
     }, WRITE_DEBOUNCE_MS);
     this.pendingWrites.set(dps, { value, timer });
+  }
+
+  private sendCommand(dps: number, value: DpsPrimitive) {
+    this.recentWrites.set(dps, { value, at: Date.now() });
+    this.log.debug(`${this.accessory.displayName}:`, `sendCommand(${dps}, ${value})`);
+    this.tuyaDevice.set({ dps, set: value }).catch(err => {
+      // The socket dropped between the connection check and the write. Re-queue
+      // so the value is flushed on the next reconnect instead of being lost.
+      if (!this.isConnected) {
+        this.queuedWrites.set(dps, value);
+      }
+      this.log.warn(`${this.accessory.displayName}:`, `set dps ${dps} failed -> ${err}`);
+    });
+  }
+
+  private flushQueuedWrites() {
+    if (this.queuedWrites.size === 0) {
+      return;
+    }
+    const queued = [...this.queuedWrites];
+    this.queuedWrites.clear();
+    this.log.debug(`${this.accessory.displayName}:`, `flushing ${queued.length} queued write(s)`);
+    for (const [dps, value] of queued) {
+      this.sendCommand(dps, value);
+    }
   }
 
   private shouldIgnoreEcho(dps: number, incoming: DpsPrimitive): boolean {
