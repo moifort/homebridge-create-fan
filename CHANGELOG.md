@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.0
+
+- Add `light` config (default: on) to hide the Lightbulb tile and its toggle for fan models without a light
+
 ## 2.1.1
 
 - Fewer `ECONNRESET` reconnect storms when another local client (a second Homebridge instance, Home Assistant, the Tuya cloud) competes for the fan's single TCP connection
