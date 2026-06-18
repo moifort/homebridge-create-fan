@@ -41,6 +41,13 @@
               "description": "Static IP address of the fan on the local network",
               "required": true
             },
+            "light": {
+              "type": "boolean",
+              "title": "Expose light",
+              "description": "Exposes a Lightbulb tile to control the fan's light. Turn this off for fan models without a light. Default: on.",
+              "default": true,
+              "required": false
+            },
             "toggles": {
               "type": "boolean",
               "title": "Expose stateless button tiles",

@@ -38,6 +38,20 @@ Set `toggles: false` on the device to hide them. Default is `true`.
 }
 ```
 
+#### Light
+
+For fan models without a light, set `light: false` to hide the Lightbulb tile (and its toggle).
+Default is `true`.
+
+```json
+{
+  "platform": "HomebridgeCreateCeilingFan",
+  "devices": [
+    { "id": "…", "key": "…", "name": "Ceiling Fan", "ip": "192.168.1.100", "light": false }
+  ]
+}
+```
+
 
 ## Configuration
 
