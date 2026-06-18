@@ -49,7 +49,7 @@ const stepToPercent = (step: number): number =>
 
 export class FanAccessory {
   private readonly fanService: Service;
-  private readonly lightService: Service;
+  private readonly lightService?: Service;
   private readonly fanToggleService?: Service;
   private readonly lightToggleService?: Service;
   private readonly fanSpeedUpService?: Service;
@@ -116,12 +116,20 @@ export class FanAccessory {
       .onSet(this.setRotationDirection.bind(this));
 
     // Light (main service: explicit no-subtype filter to avoid collision with the Lightbulb toggle)
-    this.lightService = this.accessory.services.find(
+    // Fans without a light can hide the tile with `light: false`.
+    const lightEnabled = accessory.context.device.light !== false;
+    const existingLight = this.accessory.services.find(
       service => service.UUID === this.platform.Service.Lightbulb.UUID && !service.subtype,
-    ) ?? this.accessory.addService(this.platform.Service.Lightbulb);
-    this.lightService.getCharacteristic(this.Characteristic.On)
-      .onGet(this.getLightOn.bind(this))
-      .onSet(this.setLightOn.bind(this));
+    );
+    if (lightEnabled) {
+      this.lightService = existingLight ?? this.accessory.addService(this.platform.Service.Lightbulb);
+      this.lightService.getCharacteristic(this.Characteristic.On)
+        .onGet(this.getLightOn.bind(this))
+        .onSet(this.setLightOn.bind(this));
+    } else if (existingLight) {
+      // Remove a previously exposed light from cached accessories.
+      this.accessory.removeService(existingLight);
+    }
 
     // Remove legacy Toggle Light switch service (no subtype) from cached accessories
     const legacyToggleSwitches = this.accessory.services.filter(
@@ -156,13 +164,20 @@ export class FanAccessory {
         .onGet(() => 0 as 0 | 1)
         .onSet(this.onFanToggle.bind(this));
 
-      this.lightToggleService =
-        this.accessory.getServiceById(this.platform.Service.Lightbulb, LIGHT_TOGGLE_SUBTYPE)
-        || this.accessory.addService(this.platform.Service.Lightbulb, 'Toggle', LIGHT_TOGGLE_SUBTYPE);
-      this.lightToggleService.setCharacteristic(this.Characteristic.Name, 'Toggle');
-      this.lightToggleService.getCharacteristic(this.Characteristic.On)
-        .onGet(() => false)
-        .onSet(this.onLightToggle.bind(this));
+      if (lightEnabled) {
+        this.lightToggleService =
+          this.accessory.getServiceById(this.platform.Service.Lightbulb, LIGHT_TOGGLE_SUBTYPE)
+          || this.accessory.addService(this.platform.Service.Lightbulb, 'Toggle', LIGHT_TOGGLE_SUBTYPE);
+        this.lightToggleService.setCharacteristic(this.Characteristic.Name, 'Toggle');
+        this.lightToggleService.getCharacteristic(this.Characteristic.On)
+          .onGet(() => false)
+          .onSet(this.onLightToggle.bind(this));
+      } else {
+        const lightStale = this.accessory.getServiceById(this.platform.Service.Lightbulb, LIGHT_TOGGLE_SUBTYPE);
+        if (lightStale) {
+          this.accessory.removeService(lightStale);
+        }
+      }
     } else {
       const fanStale = this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_TOGGLE_SUBTYPE);
       if (fanStale) {
@@ -368,7 +383,7 @@ export class FanAccessory {
     const lightDps = dps[String(DPS_LIGHT)];
     if (typeof lightDps === 'boolean' && !this.shouldIgnoreEcho(DPS_LIGHT, lightDps) && lightDps !== this.lightState.On) {
       this.lightState.On = lightDps;
-      this.lightService.updateCharacteristic(this.Characteristic.On, lightDps);
+      this.lightService?.updateCharacteristic(this.Characteristic.On, lightDps);
       changed = true;
       this.log.debug(`${this.accessory.displayName}:`, `Tuya -> light ${lightDps ? 'ON' : 'OFF'}`);
     }
@@ -431,7 +446,7 @@ export class FanAccessory {
     this.lightState.On = next;
     this.persistState();
     this.scheduleCommand(DPS_LIGHT, next);
-    this.lightService.updateCharacteristic(this.Characteristic.On, next);
+    this.lightService?.updateCharacteristic(this.Characteristic.On, next);
     this.log.debug(`${this.accessory.displayName}:`, `onLightToggle() => ${next ? 'ON' : 'OFF'}`);
     setTimeout(() => {
       this.lightToggleService?.updateCharacteristic(this.Characteristic.On, false);
