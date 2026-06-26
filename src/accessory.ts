@@ -262,9 +262,11 @@ export class FanAccessory {
       await this.tuyaDevice.connect();
     } catch (err) {
       this.log.warn(`${this.accessory.displayName}:`, `connect failed -> ${err}`);
-      this.scheduleReconnect();
     } finally {
       this.isConnecting = false;
+    }
+    if (!this.isConnected) {
+      this.scheduleReconnect();
     }
   }
 
