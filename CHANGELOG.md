@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.1
+
+- Fix: a failed connect attempt (connect timeout or socket error) no longer leaves the accessory wedged offline permanently — the reconnect backoff is now always re-armed, so queued writes get flushed once the fan comes back
+
 ## 2.2.0
 
 - Add `light` config (default: on) to hide the Lightbulb tile and its toggle for fan models without a light
