@@ -63,6 +63,16 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
 
   discoverDevices(fans: FanConfiguration[]) {
     for (const fan of fans) {
+      const missing = (['id', 'key', 'ip'] as const).filter(field => !fan[field]);
+      if (missing.length > 0) {
+        this.log.error(
+          'Platform:',
+          `Skipping fan "${fan.name ?? fan.id ?? 'unknown'}" — missing required config field(s): ` +
+          `${missing.join(', ')}. Since v2.1.0 a static "ip" is required (UDP discovery was removed). ` +
+          'Add the missing field(s) in the plugin config and restart Homebridge.',
+        );
+        continue;
+      }
       const uuid = this.api.hap.uuid.generate(fan.id);
       const existingFan = this.accessories.get(uuid);
       if (existingFan) {

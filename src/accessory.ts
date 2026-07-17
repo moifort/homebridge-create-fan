@@ -41,6 +41,21 @@ type FanDirectionDps = typeof FAN_DIRECTION_FORWARD | typeof FAN_DIRECTION_REVER
 const isFanDirectionDps = (value: unknown): value is FanDirectionDps =>
   value === FAN_DIRECTION_FORWARD || value === FAN_DIRECTION_REVERSE;
 
+// tuyapi surfaces malformed/partial packets as 'error' events: its parser
+// throws while decoding bytes off an otherwise healthy socket (the socket is
+// NOT torn down in that path). Examples: a RangeError from reading past a short
+// buffer ("offset out of range"), or TypeErrors for prefix/suffix/length
+// mismatches, or HMAC/CRC failures. None of these mean the connection is dead,
+// so we must not reconnect on them — doing so drops a working link and kicks
+// off the backoff/reconnect cycle the user sees as the plugin "restarting".
+const PACKET_DECODE_ERROR_RE =
+  /prefix does not match|suffix does not match|packet too short|packet missing payload|hmac mismatch|crc mismatch|out of range/i;
+
+const isPacketDecodeError = (error: unknown): boolean =>
+  error instanceof RangeError
+  || error instanceof TypeError
+  || (error instanceof Error && PACKET_DECODE_ERROR_RE.test(error.message));
+
 const percentToStep = (percent: number): number =>
   Math.min(FAN_SPEED_MAX, Math.max(FAN_SPEED_MIN, Math.ceil(percent / (100 / FAN_SPEED_MAX))));
 
@@ -257,6 +272,13 @@ export class FanAccessory {
       }, STABLE_CONNECTION_MS);
     });
     this.tuyaDevice.on('error', error => {
+      // A malformed/partial packet on a still-healthy socket is not a
+      // connection failure: log it quietly and keep the connection instead of
+      // reconnecting. This prevents one bad packet from restarting the plugin.
+      if (isPacketDecodeError(error)) {
+        this.log.debug(`${this.accessory.displayName}:`, `Ignored malformed packet -> ${error}`);
+        return;
+      }
       this.log.warn(`${this.accessory.displayName}:`, `Error -> ${error.toString()}`);
       this.isConnected = false;
       this.cancelStabilityTimer();

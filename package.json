@@ -2,7 +2,7 @@
   "name": "homebridge-create-ceiling-fan",
   "displayName": "Hombridge Create Ceiling Fan",
   "type": "module",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "private": false,
   "description": "Free the full potential of your ceiling fan with Homebridge",
   "author": "Thibaut Mottet",
