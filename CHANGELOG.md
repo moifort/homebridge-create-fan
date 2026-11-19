@@ -7,6 +7,9 @@
 - Fix: a wrong local `key` is now reported as a clear `Wrong local key` error instead of being hidden in debug logs behind an endless `connect failed` loop
 - Fix: a numeric `version` in `config.json` (`3.4` instead of `"3.4"`) is now accepted
 - Fix: two fans configured with the same `id` are now skipped with an explicit error instead of crashing Homebridge
+- Fewer log lines while the fan is unreachable: only the first reconnect attempt is logged at info level, the following ones at debug level, plus a single warning after 5 minutes offline and a `Back online` line when it recovers
+- Clean shutdown: Tuya sockets and timers are closed when Homebridge stops or restarts the bridge
+- Accessory cache writes are batched instead of rewriting the cache file on every state change
 - Config UI: rewritten form with placeholders, IP validation, a masked local key, accurate help texts and advanced options folded away
 - README: document `speedButtons` and `version`, add a troubleshooting section
 - The npm package no longer ships screenshots and editor files (5.5 MB → 21 kB)

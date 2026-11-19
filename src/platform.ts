@@ -39,7 +39,8 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
   public readonly Service: typeof Service;
   public readonly Characteristic: typeof Characteristic;
   public readonly accessories: Map<string, PlatformAccessory<PlatformAccessoryContext>> = new Map();
-  public readonly discoveredCacheUUIDs: string[] = [];
+  private readonly discoveredCacheUUIDs = new Set<string>();
+  private readonly fanAccessories: FanAccessory[] = [];
 
   constructor(
     public readonly log: Logging,
@@ -61,6 +62,14 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
         return;
       }
       this.discoverDevices(config.devices);
+    });
+
+    // Close the Tuya sockets and stop every reconnect/write timer so
+    // Homebridge can exit (or restart a child bridge) cleanly.
+    this.api.on('shutdown', () => {
+      for (const fan of this.fanAccessories) {
+        fan.dispose();
+      }
     });
   }
 
@@ -101,20 +110,20 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
       if (existingFan) {
         this.log.info('Platform:',`Restoring existing accessory from cache -> ${existingFan.displayName}`);
         existingFan.context.device = fan;
-        new FanAccessory(this, existingFan);
+        this.fanAccessories.push(new FanAccessory(this, existingFan));
       } else {
         this.log.info('Platform:',`Adding new accessory -> ${fan.name}`);
         const accessory = new this.api.platformAccessory<PlatformAccessoryContext>(fan.name, uuid);
         accessory.context.device = fan;
-        new FanAccessory(this, accessory);
+        this.fanAccessories.push(new FanAccessory(this, accessory));
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       }
-      this.discoveredCacheUUIDs.push(uuid);
+      this.discoveredCacheUUIDs.add(uuid);
     }
 
     // Clean
     for (const [uuid, accessory] of this.accessories) {
-      if (!this.discoveredCacheUUIDs.includes(uuid)) {
+      if (!this.discoveredCacheUUIDs.has(uuid)) {
         this.log.info('Platform:','Removing existing accessory from cache ->', accessory.displayName);
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       }

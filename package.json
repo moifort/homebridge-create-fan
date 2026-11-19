@@ -38,6 +38,7 @@
   "scripts": {
     "build": "rimraf ./dist && tsc",
     "lint": "eslint . --max-warnings=0",
+    "test": "npm run build && tsc -p tsconfig.test.json && node --test 'test/**/*.test.ts'",
     "watch": "npm run build && npm link && nodemon"
   },
   "dependencies": {

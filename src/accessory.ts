@@ -1,26 +1,17 @@
-import { Characteristic, CharacteristicValue, type Logging, PlatformAccessory, Service } from 'homebridge';
+import { Characteristic, CharacteristicValue, type Logging, PlatformAccessory, Service, type WithUUID } from 'homebridge';
 import { HomebridgeCreateCeilingFan, PlatformAccessoryContext } from './platform.js';
 import type TuyaDevice from 'tuyapi';
 import TuyAPI from 'tuyapi';
-
-type DpsPrimitive = string | number | boolean;
+import { TuyaConnection } from './connection.js';
+import { DEFAULT_PROTOCOL_VERSION } from './config.js';
+import { type DpsPrimitive, isEchoExpired, type RecentWrite, shouldIgnoreEcho } from './echo.js';
+import { FAN_SPEED_MAX, FAN_SPEED_MIN, percentToStep, SPEED_STEP_PERCENT, stepToPercent } from './speed.js';
 
 const WRITE_DEBOUNCE_MS = 250;
-const ECHO_SUPPRESS_MS = 1500;
 const TOGGLE_RESET_MS = 500;
-const RECONNECT_BACKOFF_MS = [5_000, 10_000, 30_000, 60_000, 120_000] as const;
-// Randomised +/- fraction added to each backoff delay. Tuya devices accept a
-// single local TCP connection: when a second client (a stray Homebridge
-// instance, Home Assistant, the Tuya cloud keep-alive...) reconnects, the fan
-// RSTs ours, we reconnect and RST theirs, and so on. Without jitter both
-// clients retry in lockstep and the war never ends. Jitter desynchronises the
-// two so one side wins the connection and holds it.
-const RECONNECT_JITTER = 0.3;
-// A connection must stay error-free this long before we consider it stable
-// and reset the backoff. Tuya devices that flap (handshake OK -> immediate
-// RST) would otherwise reset the counter on every brief 'connected' event,
-// turning the exponential backoff into a tight 5s loop.
-const STABLE_CONNECTION_MS = 30_000;
+// Persisting the accessory cache rewrites the whole cachedAccessories file:
+// batch the bursts of state changes (slider drags, toggles…).
+const PERSIST_DEBOUNCE_MS = 1000;
 
 const DPS_LIGHT = 20;
 const DPS_FAN = 60;
@@ -31,55 +22,12 @@ const LIGHT_TOGGLE_SUBTYPE = 'light-toggle';
 const FAN_SPEED_UP_SUBTYPE = 'fan-speed-up';
 const FAN_SPEED_DOWN_SUBTYPE = 'fan-speed-down';
 
-const FAN_SPEED_MIN = 1;
-const FAN_SPEED_MAX = 6;
-
 const FAN_DIRECTION_FORWARD = 'forward';
 const FAN_DIRECTION_REVERSE = 'reverse';
 type FanDirectionDps = typeof FAN_DIRECTION_FORWARD | typeof FAN_DIRECTION_REVERSE;
 
 const isFanDirectionDps = (value: unknown): value is FanDirectionDps =>
   value === FAN_DIRECTION_FORWARD || value === FAN_DIRECTION_REVERSE;
-
-// tuyapi surfaces malformed/partial packets as 'error' events: its parser
-// throws while decoding bytes off an otherwise healthy socket (the socket is
-// NOT torn down in that path). Examples: a RangeError from reading past a short
-// buffer ("offset out of range"), or TypeErrors for prefix/suffix/length
-// mismatches, or HMAC/CRC failures. None of these mean the connection is dead,
-// so we must not reconnect on them — doing so drops a working link and kicks
-// off the backoff/reconnect cycle the user sees as the plugin "restarting".
-const PACKET_DECODE_ERROR_RE =
-  /prefix does not match|suffix does not match|packet too short|packet missing payload|hmac mismatch|crc mismatch|out of range/i;
-
-// tuyapi rejects the session key negotiation with this message when the
-// configured local key is wrong. It must be surfaced to the user, not swallowed
-// as a malformed packet.
-const WRONG_KEY_ERROR_RE = /hmac mismatch\(keys\)/i;
-
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
-
-const isWrongKeyError = (error: unknown): boolean => WRONG_KEY_ERROR_RE.test(errorMessage(error));
-
-const isPacketDecodeError = (error: unknown): boolean =>
-  !isWrongKeyError(error) && (
-    error instanceof RangeError
-    || error instanceof TypeError
-    || (error instanceof Error && PACKET_DECODE_ERROR_RE.test(error.message))
-  );
-
-const SPEED_STEP_PERCENT = 100 / FAN_SPEED_MAX;
-
-const clampStep = (step: number): number => Math.min(FAN_SPEED_MAX, Math.max(FAN_SPEED_MIN, step));
-
-// Math.round (not ceil): HomeKit may hand back either the exact multiple of
-// minStep (16.666…) or a rounded integer (17, 67…). Both must map back to the
-// same step, otherwise re-applying a value read from the accessory bumps the
-// fan up one step.
-const percentToStep = (percent: number): number => clampStep(Math.round(percent / SPEED_STEP_PERCENT));
-
-// Exact multiple of minStep, so HAP does not snap it to a neighbouring value.
-const stepToPercent = (step: number): number => clampStep(step) * SPEED_STEP_PERCENT;
 
 export class FanAccessory {
   private readonly fanService: Service;
@@ -91,15 +39,13 @@ export class FanAccessory {
   private readonly Characteristic: typeof Characteristic;
   private readonly log: Logging;
   private readonly tuyaDevice: TuyaDevice;
-  private isConnecting = false;
-  private isConnected = false;
-  private reconnectTimer?: NodeJS.Timeout;
-  private stabilityTimer?: NodeJS.Timeout;
-  private reconnectAttempts = 0;
+  private readonly connection: TuyaConnection;
   private fanState: { Active: 0 | 1; RotationSpeed: number; RotationDirection: 0 | 1 };
-  private lightState: { On: boolean; Brightness: number };
+  private lightState: { On: boolean };
   private readonly pendingWrites = new Map<number, { value: DpsPrimitive; timer: NodeJS.Timeout }>();
-  private readonly recentWrites = new Map<number, { value: DpsPrimitive; at: number }>();
+  private readonly recentWrites = new Map<number, RecentWrite>();
+  private readonly tileResetTimers = new Set<NodeJS.Timeout>();
+  private persistTimer?: NodeJS.Timeout;
   // Latest desired value per dps that could not be sent because the socket was
   // down. Flushed once the device reconnects. Calling tuyaDevice.set() while
   // disconnected makes tuyapi auto-connect *outside* our backoff, which feeds
@@ -121,7 +67,6 @@ export class FanAccessory {
     };
     this.lightState = {
       On: accessory.context.lightState?.On ?? false,
-      Brightness: 60,
     };
 
     this.log.info(`${accessory.displayName}:`, 'Init...');
@@ -165,220 +110,114 @@ export class FanAccessory {
       this.accessory.removeService(existingLight);
     }
 
-    // Remove legacy Toggle Light switch service (no subtype) from cached accessories
-    const legacyToggleSwitches = this.accessory.services.filter(
-      service => service.UUID === this.platform.Service.Switch.UUID && !service.subtype,
-    );
-    for (const legacy of legacyToggleSwitches) {
-      this.accessory.removeService(legacy);
-    }
-
-    // Legacy cleanup: drop previous toggle services (v2.0.16/v2.0.20 Switch, v2.0.19 StatelessProgrammableSwitch)
-    const legacyToggleTypes = [
-      this.platform.Service.Switch.UUID,
-      this.platform.Service.StatelessProgrammableSwitch.UUID,
-    ];
-    for (const legacy of this.accessory.services.filter(
-      service => legacyToggleTypes.includes(service.UUID)
-        && (service.subtype === FAN_TOGGLE_SUBTYPE || service.subtype === LIGHT_TOGGLE_SUBTYPE),
-    )) {
-      this.accessory.removeService(legacy);
-    }
+    this.removeLegacyServices();
 
     // Momentary toggle tiles: a secondary Fanv2 (fan icon) and Lightbulb (bulb icon).
     // Tap in Home (or trigger from an automation) -> flips the underlying fan/light state,
     // then auto-resets the tile after a short delay.
     const togglesEnabled = accessory.context.device.toggles !== false;
-    if (togglesEnabled) {
-      this.fanToggleService =
-        this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_TOGGLE_SUBTYPE)
-        || this.accessory.addService(this.platform.Service.Fanv2, 'Toggle', FAN_TOGGLE_SUBTYPE);
-      this.fanToggleService.setCharacteristic(this.Characteristic.Name, 'Toggle');
-      this.fanToggleService.getCharacteristic(this.Characteristic.Active)
-        .onGet(() => 0 as 0 | 1)
-        .onSet(this.onFanToggle.bind(this));
-
-      if (lightEnabled) {
-        this.lightToggleService =
-          this.accessory.getServiceById(this.platform.Service.Lightbulb, LIGHT_TOGGLE_SUBTYPE)
-          || this.accessory.addService(this.platform.Service.Lightbulb, 'Toggle', LIGHT_TOGGLE_SUBTYPE);
-        this.lightToggleService.setCharacteristic(this.Characteristic.Name, 'Toggle');
-        this.lightToggleService.getCharacteristic(this.Characteristic.On)
-          .onGet(() => false)
-          .onSet(this.onLightToggle.bind(this));
-      } else {
-        const lightStale = this.accessory.getServiceById(this.platform.Service.Lightbulb, LIGHT_TOGGLE_SUBTYPE);
-        if (lightStale) {
-          this.accessory.removeService(lightStale);
-        }
-      }
-    } else {
-      const fanStale = this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_TOGGLE_SUBTYPE);
-      if (fanStale) {
-        this.accessory.removeService(fanStale);
-      }
-      const lightStale = this.accessory.getServiceById(this.platform.Service.Lightbulb, LIGHT_TOGGLE_SUBTYPE);
-      if (lightStale) {
-        this.accessory.removeService(lightStale);
-      }
-    }
+    this.fanToggleService = this.ensureService(this.platform.Service.Fanv2, FAN_TOGGLE_SUBTYPE, 'Toggle', togglesEnabled);
+    this.fanToggleService?.getCharacteristic(this.Characteristic.Active)
+      .onGet(() => 0 as 0 | 1)
+      .onSet(this.onFanToggle.bind(this));
+    this.lightToggleService = this.ensureService(
+      this.platform.Service.Lightbulb, LIGHT_TOGGLE_SUBTYPE, 'Toggle', togglesEnabled && lightEnabled,
+    );
+    this.lightToggleService?.getCharacteristic(this.Characteristic.On)
+      .onGet(() => false)
+      .onSet(this.onLightToggle.bind(this));
 
     // Speed step tiles: two secondary Fanv2 services (fan-speed-up, fan-speed-down).
     // Tap in Home (or trigger from an automation) -> bumps the fan speed by one step.
     // Speed Up powers the fan on from OFF; Speed Down powers it off when already at step 1.
     const speedButtonsEnabled = accessory.context.device.speedButtons !== false;
-    if (speedButtonsEnabled) {
-      this.fanSpeedUpService =
-        this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_SPEED_UP_SUBTYPE)
-        || this.accessory.addService(this.platform.Service.Fanv2, 'Speed Up', FAN_SPEED_UP_SUBTYPE);
-      this.fanSpeedUpService.setCharacteristic(this.Characteristic.Name, 'Speed Up');
-      this.fanSpeedUpService.getCharacteristic(this.Characteristic.Active)
-        .onGet(() => 0 as 0 | 1)
-        .onSet(this.onSpeedUp.bind(this));
-
-      this.fanSpeedDownService =
-        this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_SPEED_DOWN_SUBTYPE)
-        || this.accessory.addService(this.platform.Service.Fanv2, 'Speed Down', FAN_SPEED_DOWN_SUBTYPE);
-      this.fanSpeedDownService.setCharacteristic(this.Characteristic.Name, 'Speed Down');
-      this.fanSpeedDownService.getCharacteristic(this.Characteristic.Active)
-        .onGet(() => 0 as 0 | 1)
-        .onSet(this.onSpeedDown.bind(this));
-    } else {
-      const upStale = this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_SPEED_UP_SUBTYPE);
-      if (upStale) {
-        this.accessory.removeService(upStale);
-      }
-      const downStale = this.accessory.getServiceById(this.platform.Service.Fanv2, FAN_SPEED_DOWN_SUBTYPE);
-      if (downStale) {
-        this.accessory.removeService(downStale);
-      }
-    }
+    this.fanSpeedUpService = this.ensureService(this.platform.Service.Fanv2, FAN_SPEED_UP_SUBTYPE, 'Speed Up', speedButtonsEnabled);
+    this.fanSpeedUpService?.getCharacteristic(this.Characteristic.Active)
+      .onGet(() => 0 as 0 | 1)
+      .onSet(this.onSpeedUp.bind(this));
+    this.fanSpeedDownService = this.ensureService(
+      this.platform.Service.Fanv2, FAN_SPEED_DOWN_SUBTYPE, 'Speed Down', speedButtonsEnabled,
+    );
+    this.fanSpeedDownService?.getCharacteristic(this.Characteristic.Active)
+      .onGet(() => 0 as 0 | 1)
+      .onSet(this.onSpeedDown.bind(this));
 
     this.tuyaDevice = new TuyAPI({
       id: accessory.context.device.id,
       key: accessory.context.device.key,
       ip: accessory.context.device.ip,
-      version: String(accessory.context.device.version ?? '3.4'),
+      version: String(accessory.context.device.version ?? DEFAULT_PROTOCOL_VERSION),
       issueRefreshOnConnect: true,
     });
-    this.tuyaDevice.on('disconnected', () => this.markDisconnected());
-    this.tuyaDevice.on('connected', () => this.markConnected());
-    // tuyapi emits 'error' for many non-fatal conditions (a malformed packet,
-    // 'Timeout waiting for status response' as a plain string…) without closing
-    // the socket. Real socket failures are always followed by 'disconnected',
-    // so the connection state is never flipped from here: we only resync it
-    // with tuyapi's own view. Flipping it while the socket was still open left
-    // the accessory offline for good, since tuyaDevice.connect() then resolves
-    // immediately without emitting 'connected'.
-    this.tuyaDevice.on('error', (error: unknown) => {
-      if (isWrongKeyError(error)) {
-        this.log.error(
-          `${this.accessory.displayName}:`,
-          'Wrong local key: the fan rejected the session handshake (HMAC mismatch). '
-          + 'Check the "key" field in the plugin config (it changes every time the fan is re-paired in the app).',
-        );
-      } else if (isPacketDecodeError(error)) {
-        // A malformed/partial packet on a still-healthy socket is not a
-        // connection failure: log it quietly and keep the connection.
-        this.log.debug(`${this.accessory.displayName}:`, `Ignored malformed packet -> ${errorMessage(error)}`);
-      } else {
-        this.log.warn(`${this.accessory.displayName}:`, `Error -> ${errorMessage(error)}`);
-      }
-      this.syncConnectionState();
+    this.connection = new TuyaConnection(this.tuyaDevice, this.log, {
+      name: accessory.displayName,
+      onConnected: () => this.flushQueuedWrites(),
     });
+    this.tuyaDevice.on('connected', () => this.connection.handleConnected());
+    this.tuyaDevice.on('disconnected', () => this.connection.handleDisconnected());
+    this.tuyaDevice.on('error', (error: unknown) => this.connection.handleError(error));
     this.tuyaDevice.on('data', data => this.applyDps(data?.dps));
     this.tuyaDevice.on('dp-refresh', data => this.applyDps(data?.dps));
-    this.connect();
+    void this.connection.connect();
   }
 
-  async connect() {
-    if (this.isConnecting || this.isConnected) {
-      return;
+  /** Stops every timer and closes the Tuya socket. Called on Homebridge shutdown. */
+  dispose() {
+    this.connection.dispose();
+    for (const { timer } of this.pendingWrites.values()) {
+      clearTimeout(timer);
     }
-    this.isConnecting = true;
-    this.log.info(`${this.accessory.displayName}:`, 'Connecting...');
-    try {
-      await this.tuyaDevice.connect();
-    } catch (err) {
-      if (!isWrongKeyError(err)) {
-        this.log.warn(`${this.accessory.displayName}:`, `connect failed -> ${errorMessage(err)}`);
+    this.pendingWrites.clear();
+    for (const timer of this.tileResetTimers) {
+      clearTimeout(timer);
+    }
+    this.tileResetTimers.clear();
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = undefined;
+      this.platform.api.updatePlatformAccessories([this.accessory]);
+    }
+  }
+
+  /**
+   * Returns the secondary service `subtype`, creating it when `enabled`, or
+   * removes it from the (cached) accessory when disabled.
+   */
+  private ensureService(type: WithUUID<typeof Service>, subtype: string, name: string, enabled: boolean): Service | undefined {
+    const existing = this.accessory.getServiceById(type, subtype);
+    if (!enabled) {
+      if (existing) {
+        this.accessory.removeService(existing);
       }
-    } finally {
-      this.isConnecting = false;
+      return undefined;
     }
-    // connect() resolves without emitting 'connected' when tuyapi still holds
-    // an open socket: take tuyapi's word for the actual state.
-    this.syncConnectionState();
-    if (!this.isConnected) {
-      this.scheduleReconnect();
+    const service = existing ?? this.accessory.addService(type, name, subtype);
+    service.setCharacteristic(this.Characteristic.Name, name);
+    return service;
+  }
+
+  private removeLegacyServices() {
+    // Legacy Toggle Light switch service (no subtype),
+    // toggles from v2.0.16/v2.0.20 (Switch) and v2.0.19 (StatelessProgrammableSwitch).
+    const legacyToggleTypes = [
+      this.platform.Service.Switch.UUID,
+      this.platform.Service.StatelessProgrammableSwitch.UUID,
+    ];
+    for (const legacy of this.accessory.services.filter(
+      service => (service.UUID === this.platform.Service.Switch.UUID && !service.subtype)
+        || (legacyToggleTypes.includes(service.UUID)
+          && (service.subtype === FAN_TOGGLE_SUBTYPE || service.subtype === LIGHT_TOGGLE_SUBTYPE)),
+    )) {
+      this.accessory.removeService(legacy);
     }
   }
 
-  private syncConnectionState() {
-    const actual = this.tuyaDevice.isConnected();
-    if (actual === this.isConnected) {
-      return;
-    }
-    if (actual) {
-      this.markConnected();
-    } else {
-      this.markDisconnected();
-    }
-  }
-
-  private markConnected() {
-    this.log.info(`${this.accessory.displayName}:`, 'Connected!');
-    this.isConnected = true;
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = undefined;
-    }
-    this.flushQueuedWrites();
-    // Don't reset the backoff yet — the device may RST in the next few ms.
-    // Only consider the connection stable after STABLE_CONNECTION_MS without
-    // a disconnect event.
-    this.cancelStabilityTimer();
-    this.stabilityTimer = setTimeout(() => {
-      this.stabilityTimer = undefined;
-      if (this.reconnectAttempts > 0) {
-        this.log.debug(
-          `${this.accessory.displayName}:`,
-          `Connection stable for ${STABLE_CONNECTION_MS / 1000}s — backoff reset`,
-        );
-      }
-      this.reconnectAttempts = 0;
-    }, STABLE_CONNECTION_MS);
-  }
-
-  private markDisconnected() {
-    this.log.info(`${this.accessory.displayName}:`, 'Disconnected');
-    this.isConnected = false;
-    this.cancelStabilityTimer();
-    this.scheduleReconnect();
-  }
-
-  private scheduleReconnect() {
-    if (this.isConnected || this.isConnecting || this.reconnectTimer) {
-      return;
-    }
-    const base = RECONNECT_BACKOFF_MS[Math.min(this.reconnectAttempts, RECONNECT_BACKOFF_MS.length - 1)];
-    const delay = Math.round(base * (1 + RECONNECT_JITTER * (Math.random() * 2 - 1)));
-    this.reconnectAttempts += 1;
-    this.log.info(
-      `${this.accessory.displayName}:`,
-      `Reconnect scheduled in ${(delay / 1000).toFixed(1)}s (attempt ${this.reconnectAttempts})`,
-    );
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = undefined;
-      this.connect();
-    }, delay);
-  }
-
-  private cancelStabilityTimer() {
-    if (this.stabilityTimer) {
-      clearTimeout(this.stabilityTimer);
-      this.stabilityTimer = undefined;
-    }
+  private resetTileLater(reset: () => void) {
+    const timer = setTimeout(() => {
+      this.tileResetTimers.delete(timer);
+      reset();
+    }, TOGGLE_RESET_MS);
+    this.tileResetTimers.add(timer);
   }
 
   private scheduleCommand(dps: number, value: DpsPrimitive) {
@@ -388,7 +227,7 @@ export class FanAccessory {
     }
     const timer = setTimeout(() => {
       this.pendingWrites.delete(dps);
-      if (!this.isConnected) {
+      if (!this.connection.isConnected) {
         // Don't let tuyapi auto-connect outside our backoff. Keep the latest
         // desired value and flush it once 'connected' fires. HomeKit already
         // shows the optimistic state from the onSet handler.
@@ -407,7 +246,7 @@ export class FanAccessory {
     this.tuyaDevice.set({ dps, set: value }).catch(err => {
       // The socket dropped between the connection check and the write. Re-queue
       // so the value is flushed on the next reconnect instead of being lost.
-      if (!this.isConnected) {
+      if (!this.connection.isConnected) {
         this.queuedWrites.set(dps, value);
       }
       this.log.warn(`${this.accessory.displayName}:`, `set dps ${dps} failed -> ${err}`);
@@ -427,25 +266,30 @@ export class FanAccessory {
   }
 
   private shouldIgnoreEcho(dps: number, incoming: DpsPrimitive): boolean {
+    const now = Date.now();
     const recent = this.recentWrites.get(dps);
-    if (!recent) {
-      return false;
-    }
-    if (Date.now() - recent.at > ECHO_SUPPRESS_MS) {
+    if (recent && isEchoExpired(recent, now)) {
       this.recentWrites.delete(dps);
-      return false;
     }
-    return recent.value !== incoming;
+    return shouldIgnoreEcho(this.recentWrites.get(dps), incoming, now);
   }
 
   private persistState() {
+    // The context is updated right away (Homebridge also saves it on
+    // shutdown); only the disk write is batched.
     this.accessory.context.fanState = {
       Active: this.fanState.Active,
       RotationSpeed: this.fanState.RotationSpeed,
       RotationDirection: this.fanState.RotationDirection,
     };
     this.accessory.context.lightState = { On: this.lightState.On };
-    this.platform.api.updatePlatformAccessories([this.accessory]);
+    if (this.persistTimer) {
+      return;
+    }
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = undefined;
+      this.platform.api.updatePlatformAccessories([this.accessory]);
+    }, PERSIST_DEBOUNCE_MS);
   }
 
   private applyDps(dps: Record<string, unknown> | undefined) {
@@ -510,9 +354,7 @@ export class FanAccessory {
     this.scheduleCommand(DPS_FAN, next === 1);
     this.fanService.updateCharacteristic(this.Characteristic.Active, next);
     this.log.debug(`${this.accessory.displayName}:`, `onFanToggle() => ${next === 1 ? 'ACTIVE' : 'INACTIVE'}`);
-    setTimeout(() => {
-      this.fanToggleService?.updateCharacteristic(this.Characteristic.Active, 0);
-    }, TOGGLE_RESET_MS);
+    this.resetTileLater(() => this.fanToggleService?.updateCharacteristic(this.Characteristic.Active, 0));
   }
 
   private onLightToggle() {
@@ -522,9 +364,7 @@ export class FanAccessory {
     this.scheduleCommand(DPS_LIGHT, next);
     this.lightService?.updateCharacteristic(this.Characteristic.On, next);
     this.log.debug(`${this.accessory.displayName}:`, `onLightToggle() => ${next ? 'ON' : 'OFF'}`);
-    setTimeout(() => {
-      this.lightToggleService?.updateCharacteristic(this.Characteristic.On, false);
-    }, TOGGLE_RESET_MS);
+    this.resetTileLater(() => this.lightToggleService?.updateCharacteristic(this.Characteristic.On, false));
   }
 
   private onSpeedUp() {
@@ -552,9 +392,7 @@ export class FanAccessory {
       this.fanService.updateCharacteristic(this.Characteristic.RotationSpeed, stepToPercent(step));
       this.log.debug(`${this.accessory.displayName}:`, `onSpeedUp() => step ${step}/${FAN_SPEED_MAX}`);
     } finally {
-      setTimeout(() => {
-        this.fanSpeedUpService?.updateCharacteristic(this.Characteristic.Active, 0);
-      }, TOGGLE_RESET_MS);
+      this.resetTileLater(() => this.fanSpeedUpService?.updateCharacteristic(this.Characteristic.Active, 0));
     }
   }
 
@@ -581,9 +419,7 @@ export class FanAccessory {
       this.fanService.updateCharacteristic(this.Characteristic.RotationSpeed, stepToPercent(step));
       this.log.debug(`${this.accessory.displayName}:`, `onSpeedDown() => step ${step}/${FAN_SPEED_MAX}`);
     } finally {
-      setTimeout(() => {
-        this.fanSpeedDownService?.updateCharacteristic(this.Characteristic.Active, 0);
-      }, TOGGLE_RESET_MS);
+      this.resetTileLater(() => this.fanSpeedDownService?.updateCharacteristic(this.Characteristic.Active, 0));
     }
   }
 
