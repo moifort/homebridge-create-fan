@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.3.1
 
 - README: screenshots now load on npmjs.com (absolute URLs, the images are no longer shipped in the package), and a Development section explains how to run a local Homebridge
 - Dev: dependencies refreshed (Homebridge 2.5.0, TypeScript 6, ESLint 10), unused `ts-node` removed, `npm audit` clean
