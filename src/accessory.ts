@@ -51,16 +51,35 @@ const isFanDirectionDps = (value: unknown): value is FanDirectionDps =>
 const PACKET_DECODE_ERROR_RE =
   /prefix does not match|suffix does not match|packet too short|packet missing payload|hmac mismatch|crc mismatch|out of range/i;
 
+// tuyapi rejects the session key negotiation with this message when the
+// configured local key is wrong. It must be surfaced to the user, not swallowed
+// as a malformed packet.
+const WRONG_KEY_ERROR_RE = /hmac mismatch\(keys\)/i;
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+const isWrongKeyError = (error: unknown): boolean => WRONG_KEY_ERROR_RE.test(errorMessage(error));
+
 const isPacketDecodeError = (error: unknown): boolean =>
-  error instanceof RangeError
-  || error instanceof TypeError
-  || (error instanceof Error && PACKET_DECODE_ERROR_RE.test(error.message));
+  !isWrongKeyError(error) && (
+    error instanceof RangeError
+    || error instanceof TypeError
+    || (error instanceof Error && PACKET_DECODE_ERROR_RE.test(error.message))
+  );
 
-const percentToStep = (percent: number): number =>
-  Math.min(FAN_SPEED_MAX, Math.max(FAN_SPEED_MIN, Math.ceil(percent / (100 / FAN_SPEED_MAX))));
+const SPEED_STEP_PERCENT = 100 / FAN_SPEED_MAX;
 
-const stepToPercent = (step: number): number =>
-  Math.round((Math.min(FAN_SPEED_MAX, Math.max(FAN_SPEED_MIN, step)) / FAN_SPEED_MAX) * 100);
+const clampStep = (step: number): number => Math.min(FAN_SPEED_MAX, Math.max(FAN_SPEED_MIN, step));
+
+// Math.round (not ceil): HomeKit may hand back either the exact multiple of
+// minStep (16.666…) or a rounded integer (17, 67…). Both must map back to the
+// same step, otherwise re-applying a value read from the accessory bumps the
+// fan up one step.
+const percentToStep = (percent: number): number => clampStep(Math.round(percent / SPEED_STEP_PERCENT));
+
+// Exact multiple of minStep, so HAP does not snap it to a neighbouring value.
+const stepToPercent = (step: number): number => clampStep(step) * SPEED_STEP_PERCENT;
 
 export class FanAccessory {
   private readonly fanService: Service;
@@ -123,7 +142,7 @@ export class FanAccessory {
       .onGet(this.getFanActivity.bind(this))
       .onSet(this.setFanActivity.bind(this));
     this.fanService.getCharacteristic(this.Characteristic.RotationSpeed)
-      .setProps({ minValue: 0, maxValue: 100, minStep: 100 / FAN_SPEED_MAX })
+      .setProps({ minValue: 0, maxValue: 100, minStep: SPEED_STEP_PERCENT })
       .onGet(this.getRotationSpeed.bind(this))
       .onSet(this.setRotationSpeed.bind(this));
     this.fanService.getCharacteristic(this.Characteristic.RotationDirection)
@@ -242,47 +261,30 @@ export class FanAccessory {
       version: accessory.context.device.version ?? '3.4',
       issueRefreshOnConnect: true,
     });
-    this.tuyaDevice.on('disconnected', () => {
-      this.log.info(`${this.accessory.displayName}:`,'Disconnected');
-      this.isConnected = false;
-      this.cancelStabilityTimer();
-      this.scheduleReconnect();
-    });
-    this.tuyaDevice.on('connected', () => {
-      this.log.info(`${this.accessory.displayName}:`,'Connected!');
-      this.isConnected = true;
-      if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = undefined;
+    this.tuyaDevice.on('disconnected', () => this.markDisconnected());
+    this.tuyaDevice.on('connected', () => this.markConnected());
+    // tuyapi emits 'error' for many non-fatal conditions (a malformed packet,
+    // 'Timeout waiting for status response' as a plain string…) without closing
+    // the socket. Real socket failures are always followed by 'disconnected',
+    // so the connection state is never flipped from here: we only resync it
+    // with tuyapi's own view. Flipping it while the socket was still open left
+    // the accessory offline for good, since tuyaDevice.connect() then resolves
+    // immediately without emitting 'connected'.
+    this.tuyaDevice.on('error', (error: unknown) => {
+      if (isWrongKeyError(error)) {
+        this.log.error(
+          `${this.accessory.displayName}:`,
+          'Wrong local key: the fan rejected the session handshake (HMAC mismatch). '
+          + 'Check the "key" field in the plugin config (it changes every time the fan is re-paired in the app).',
+        );
+      } else if (isPacketDecodeError(error)) {
+        // A malformed/partial packet on a still-healthy socket is not a
+        // connection failure: log it quietly and keep the connection.
+        this.log.debug(`${this.accessory.displayName}:`, `Ignored malformed packet -> ${errorMessage(error)}`);
+      } else {
+        this.log.warn(`${this.accessory.displayName}:`, `Error -> ${errorMessage(error)}`);
       }
-      this.flushQueuedWrites();
-      // Don't reset the backoff yet — the device may RST in the next few ms.
-      // Only consider the connection stable after STABLE_CONNECTION_MS without
-      // an error or disconnect event.
-      this.cancelStabilityTimer();
-      this.stabilityTimer = setTimeout(() => {
-        this.stabilityTimer = undefined;
-        if (this.reconnectAttempts > 0) {
-          this.log.debug(
-            `${this.accessory.displayName}:`,
-            `Connection stable for ${STABLE_CONNECTION_MS / 1000}s — backoff reset`,
-          );
-        }
-        this.reconnectAttempts = 0;
-      }, STABLE_CONNECTION_MS);
-    });
-    this.tuyaDevice.on('error', error => {
-      // A malformed/partial packet on a still-healthy socket is not a
-      // connection failure: log it quietly and keep the connection instead of
-      // reconnecting. This prevents one bad packet from restarting the plugin.
-      if (isPacketDecodeError(error)) {
-        this.log.debug(`${this.accessory.displayName}:`, `Ignored malformed packet -> ${error}`);
-        return;
-      }
-      this.log.warn(`${this.accessory.displayName}:`, `Error -> ${error.toString()}`);
-      this.isConnected = false;
-      this.cancelStabilityTimer();
-      this.scheduleReconnect();
+      this.syncConnectionState();
     });
     this.tuyaDevice.on('data', data => this.applyDps(data?.dps));
     this.tuyaDevice.on('dp-refresh', data => this.applyDps(data?.dps));
@@ -298,13 +300,61 @@ export class FanAccessory {
     try {
       await this.tuyaDevice.connect();
     } catch (err) {
-      this.log.warn(`${this.accessory.displayName}:`, `connect failed -> ${err}`);
+      if (!isWrongKeyError(err)) {
+        this.log.warn(`${this.accessory.displayName}:`, `connect failed -> ${errorMessage(err)}`);
+      }
     } finally {
       this.isConnecting = false;
     }
+    // connect() resolves without emitting 'connected' when tuyapi still holds
+    // an open socket: take tuyapi's word for the actual state.
+    this.syncConnectionState();
     if (!this.isConnected) {
       this.scheduleReconnect();
     }
+  }
+
+  private syncConnectionState() {
+    const actual = this.tuyaDevice.isConnected();
+    if (actual === this.isConnected) {
+      return;
+    }
+    if (actual) {
+      this.markConnected();
+    } else {
+      this.markDisconnected();
+    }
+  }
+
+  private markConnected() {
+    this.log.info(`${this.accessory.displayName}:`, 'Connected!');
+    this.isConnected = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
+    this.flushQueuedWrites();
+    // Don't reset the backoff yet — the device may RST in the next few ms.
+    // Only consider the connection stable after STABLE_CONNECTION_MS without
+    // a disconnect event.
+    this.cancelStabilityTimer();
+    this.stabilityTimer = setTimeout(() => {
+      this.stabilityTimer = undefined;
+      if (this.reconnectAttempts > 0) {
+        this.log.debug(
+          `${this.accessory.displayName}:`,
+          `Connection stable for ${STABLE_CONNECTION_MS / 1000}s — backoff reset`,
+        );
+      }
+      this.reconnectAttempts = 0;
+    }, STABLE_CONNECTION_MS);
+  }
+
+  private markDisconnected() {
+    this.log.info(`${this.accessory.displayName}:`, 'Disconnected');
+    this.isConnected = false;
+    this.cancelStabilityTimer();
+    this.scheduleReconnect();
   }
 
   private scheduleReconnect() {
