@@ -1,6 +1,6 @@
 {
   "name": "homebridge-create-ceiling-fan",
-  "displayName": "Hombridge Create Ceiling Fan",
+  "displayName": "Homebridge Create Ceiling Fan",
   "type": "module",
   "version": "2.2.2",
   "private": false,
@@ -15,19 +15,30 @@
     "url": "https://github.com/moifort/homebridge-create-fan/issues"
   },
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "homebridge",
+    "homekit",
+    "tuya",
+    "ceiling-fan",
+    "fan",
+    "create"
   ],
   "main": "dist/index.js",
+  "files": [
+    "dist",
+    "config.schema.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "engines": {
-    "node": "^18.20.4 || ^20.15.1 || ^22",
+    "node": "^20 || ^22 || ^24",
     "homebridge": "^1.8.0 || ^2.0.0-beta.0 || ^2.0.0"
   },
   "scripts": {
     "build": "rimraf ./dist && tsc",
     "lint": "eslint . --max-warnings=0",
-    "watch": "npm run build && npm link && nodemon",
-    "deploy": "npm run build && npm version patch && npm publish",
-    "deploy:beta": "npm run build && npm version prepatch --preid beta && npm publish --tag=beta"
+    "watch": "npm run build && npm link && nodemon"
   },
   "dependencies": {
     "tuyapi": "7.7.1"

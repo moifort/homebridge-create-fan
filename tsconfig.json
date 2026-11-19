@@ -2,7 +2,6 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": [
-      "DOM",
       "ES2022"
     ],
     "rootDir": "src",
@@ -18,8 +17,6 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": [
-    "eslint.config.js",
-    "homebridge-ui",
     "src"
   ]
 }
