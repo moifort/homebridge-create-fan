@@ -1,0 +1,22 @@
+{
+  "bridge": {
+    "name": "Homebridge Dev",
+    "username": "0E:5C:2A:7B:91:D4",
+    "port": 51826,
+    "pin": "031-45-154"
+  },
+  "accessories": [],
+  "platforms": [
+    {
+      "platform": "HomebridgeCreateCeilingFan",
+      "devices": [
+        {
+          "name": "Ceiling Fan",
+          "ip": "192.168.1.100",
+          "id": "YOUR_TUYA_DEVICE_ID",
+          "key": "YOUR_TUYA_LOCAL_KEY"
+        }
+      ]
+    }
+  ]
+}

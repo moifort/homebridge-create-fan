@@ -1,5 +1,5 @@
 
-![ceiling-fan.jpg](readme/ceiling-fan.jpg)
+![ceiling-fan.jpg](https://raw.githubusercontent.com/moifort/homebridge-create-fan/master/readme/ceiling-fan.jpg)
 
 # CREATE Ceiling Fan
 
@@ -10,8 +10,11 @@ Control your CREATE Ceiling Fan from HomeKit, locally (no cloud).
 - Turn light on/off
 - Momentary toggle and speed up/down tiles (automation and remote friendly)
 
-![homekit-1.png](readme/homekit-1.png)
-![homekit-2.png](readme/homekit-2.png)
+![homekit-1.png](https://raw.githubusercontent.com/moifort/homebridge-create-fan/master/readme/homekit-1.png)
+![homekit-2.png](https://raw.githubusercontent.com/moifort/homebridge-create-fan/master/readme/homekit-2.png)
+
+*The fan and light controls in the Home app. The optional `Toggle` and `Speed Up` / `Speed Down`
+tiles described below are not shown.*
 
 ## Installation
 
@@ -85,6 +88,21 @@ on at step 1 when it is off; `Speed Down` turns it off when it is already at ste
   scripts…).
 - **A fan is skipped at startup**: the logs say why (a missing `id`, `key` or `ip`, or the same
   `id` used for two fans).
+
+## Development
+
+```bash
+npm install
+npm test        # build, type-check the tests, run them with node:test
+npm run lint
+```
+
+`npm run watch` rebuilds on change and runs a local Homebridge instance with the config in
+`test/hbConfig` (git-ignored). Create it from the example and fill in your fan:
+
+```bash
+cp -r test/hbConfig.example test/hbConfig
+```
 
 ## Thanks
 

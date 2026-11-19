@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- README: screenshots now load on npmjs.com (absolute URLs, the images are no longer shipped in the package), and a Development section explains how to run a local Homebridge
+- Dev: dependencies refreshed (Homebridge 2.5.0, TypeScript 6, ESLint 10), unused `ts-node` removed, `npm audit` clean
+
 ## 2.3.0
 
 - Fix: the fan speed no longer jumps up one step when HomeKit re-applies a value it read back (e.g. a scene saved at 17 % set step 2 instead of 1, 67 % set step 5 instead of 4)
