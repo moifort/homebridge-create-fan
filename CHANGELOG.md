@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.3.0
 
 - Fix: the fan speed no longer jumps up one step when HomeKit re-applies a value it read back (e.g. a scene saved at 17 % set step 2 instead of 1, 67 % set step 5 instead of 4)
 - Fix: the accessory no longer stays offline forever after a non-fatal Tuya error such as `Timeout waiting for status response` (only a restart used to bring it back)
@@ -12,7 +12,7 @@
 - Accessory cache writes are batched instead of rewriting the cache file on every state change
 - Config UI: rewritten form with placeholders, IP validation, a masked local key, accurate help texts and advanced options folded away
 - README: document `speedButtons` and `version`, add a troubleshooting section
-- The npm package no longer ships screenshots and editor files (5.5 MB → 21 kB)
+- The npm package no longer ships screenshots and editor files (5.5 MB → 29 kB)
 
 ## 2.2.2
 
