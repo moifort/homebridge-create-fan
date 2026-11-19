@@ -258,7 +258,7 @@ export class FanAccessory {
       id: accessory.context.device.id,
       key: accessory.context.device.key,
       ip: accessory.context.device.ip,
-      version: accessory.context.device.version ?? '3.4',
+      version: String(accessory.context.device.version ?? '3.4'),
       issueRefreshOnConnect: true,
     });
     this.tuyaDevice.on('disconnected', () => this.markDisconnected());

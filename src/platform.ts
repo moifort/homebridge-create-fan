@@ -1,8 +1,9 @@
 import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 import { FanAccessory } from './accessory.js';
+import { DEFAULT_PROTOCOL_VERSION, findDuplicateIds, normalizeProtocolVersion, type TuyaProtocolVersion } from './config.js';
 
-export type TuyaProtocolVersion = '3.1' | '3.2' | '3.3' | '3.4' | '3.5';
+export type { TuyaProtocolVersion } from './config.js';
 
 export interface FanConfiguration {
   id: string;
@@ -12,7 +13,9 @@ export interface FanConfiguration {
   light?: boolean;
   toggles?: boolean;
   speedButtons?: boolean;
-  version?: TuyaProtocolVersion;
+  // A number is accepted for hand-written config.json files (`"version": 3.4`);
+  // it is normalised to a string before reaching the accessory.
+  version?: TuyaProtocolVersion | number;
 }
 
 export interface PersistedFanState {
@@ -62,7 +65,27 @@ export class HomebridgeCreateCeilingFan implements DynamicPlatformPlugin {
   }
 
   discoverDevices(fans: FanConfiguration[]) {
-    for (const fan of fans) {
+    const duplicateIds = new Set(findDuplicateIds(fans.map(fan => fan.id)));
+    for (const id of duplicateIds) {
+      this.log.error(
+        'Platform:',
+        `Skipping every fan with id "${id}" — this id appears more than once in the config. ` +
+        'Each fan needs its own Tuya device ID: fix the duplicate entry and restart Homebridge.',
+      );
+    }
+    for (const configuredFan of fans) {
+      if (duplicateIds.has(configuredFan.id)) {
+        continue;
+      }
+      const version = normalizeProtocolVersion(configuredFan.version);
+      if (configuredFan.version !== undefined && version === undefined) {
+        this.log.warn(
+          'Platform:',
+          `Fan "${configuredFan.name ?? configuredFan.id}": unknown protocol version "${configuredFan.version}", ` +
+          `using ${DEFAULT_PROTOCOL_VERSION}.`,
+        );
+      }
+      const fan: FanConfiguration = { ...configuredFan, version: version ?? DEFAULT_PROTOCOL_VERSION };
       const missing = (['id', 'key', 'ip'] as const).filter(field => !fan[field]);
       if (missing.length > 0) {
         this.log.error(

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Fix: the fan speed no longer jumps up one step when HomeKit re-applies a value it read back (e.g. a scene saved at 17 % set step 2 instead of 1, 67 % set step 5 instead of 4)
+- Fix: the accessory no longer stays offline forever after a non-fatal Tuya error such as `Timeout waiting for status response` (only a restart used to bring it back)
+- Fix: a wrong local `key` is now reported as a clear `Wrong local key` error instead of being hidden in debug logs behind an endless `connect failed` loop
+- Fix: a numeric `version` in `config.json` (`3.4` instead of `"3.4"`) is now accepted
+- Fix: two fans configured with the same `id` are now skipped with an explicit error instead of crashing Homebridge
+- Config UI: rewritten form with placeholders, IP validation, a masked local key, accurate help texts and advanced options folded away
+- README: document `speedButtons` and `version`, add a troubleshooting section
+- The npm package no longer ships screenshots and editor files (5.5 MB → 21 kB)
+
 ## 2.2.2
 
 - Fix: a fan whose config is missing a required field (`ip`, `id`, or `key`) is now skipped at startup with a clear error message naming the field, instead of failing with obscure connection timeouts. This helps users who upgraded from 2.0.x without adding the static `ip` that became mandatory in 2.1.0
@@ -32,3 +43,7 @@
 ## 2.0.24
 
 - Add speed up/down button tiles (gated by `speedButtons` config, default: on)
+
+## Earlier versions
+
+See the [GitHub releases](https://github.com/moifort/homebridge-create-fan/releases).

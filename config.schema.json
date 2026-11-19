@@ -2,14 +2,17 @@
   "pluginAlias": "HomebridgeCreateCeilingFan",
   "pluginType": "platform",
   "singular": true,
+  "headerDisplay": "Control CREATE ceiling fans (Tuya based) over your local network. Each fan needs its Tuya device ID, local key and a static IP address: see [Getting your keys](https://github.com/jasonacox/tinytuya/tree/master#setup-wizard---getting-local-keys).",
+  "footerDisplay": "Not connecting? See [Troubleshooting](https://github.com/moifort/homebridge-create-fan#troubleshooting).",
   "schema": {
     "type": "object",
     "properties": {
       "name": {
-        "title": "Name",
+        "title": "Platform name",
         "type": "string",
         "required": true,
-        "default": "Create Ceiling Fan"
+        "default": "Create Ceiling Fan",
+        "description": "Only used in the Homebridge logs."
       },
       "devices": {
         "type": "array",
@@ -17,62 +20,93 @@
         "items": {
           "type": "object",
           "properties": {
-            "id": {
-              "type": "string",
-              "title": "ID",
-              "description": "Tuya fan ID",
-              "required": true
-            },
-            "key": {
-              "type": "string",
-              "title": "Key",
-              "description": "Tuya fan key",
-              "required": true
-            },
             "name": {
               "type": "string",
-              "title": "Fan Name",
-              "description": "Name of the fan",
+              "title": "Fan name",
+              "description": "Name shown in the Home app.",
+              "placeholder": "Living Room Fan",
               "required": true
             },
             "ip": {
               "type": "string",
-              "title": "IP Address",
-              "description": "Static IP address of the fan on the local network",
+              "title": "IP address",
+              "description": "Static IP address of the fan on your local network. Reserve it in your router (DHCP reservation) so it never changes.",
+              "format": "ipv4",
+              "placeholder": "192.168.1.100",
+              "required": true
+            },
+            "id": {
+              "type": "string",
+              "title": "Tuya device ID",
+              "description": "Must be unique per fan. Get it with the tinytuya setup wizard (link at the top of this page).",
+              "placeholder": "bf1234567890abcdefghij",
+              "required": true
+            },
+            "key": {
+              "type": "string",
+              "title": "Tuya local key",
+              "description": "Get it with the tinytuya setup wizard. It changes every time the fan is re-paired in the Tuya / Smart Life app.",
               "required": true
             },
             "light": {
               "type": "boolean",
-              "title": "Expose light",
-              "description": "Exposes a Lightbulb tile to control the fan's light. Turn this off for fan models without a light. Default: on.",
-              "default": true,
-              "required": false
+              "title": "Expose the light",
+              "description": "Adds a light bulb tile for the fan's light. Turn this off for fan models without a light.",
+              "default": true
             },
             "toggles": {
               "type": "boolean",
-              "title": "Expose stateless button tiles",
-              "description": "Adds two Stateless Programmable Switch tiles that render as 'Button' category tiles in Apple Home. Default: on. Note: Apple Home cannot tap these nor target them as automation actions — they are placeholders.",
-              "default": true,
-              "required": false
+              "title": "Expose toggle tiles",
+              "description": "Adds two 'Toggle' tiles (fan and light). Each tap flips the fan or light on/off, then the tile switches back off by itself. Works from the Home app, scenes, automations and HomeKit remotes.",
+              "default": true
             },
             "speedButtons": {
               "type": "boolean",
-              "title": "Expose speed up/down buttons",
-              "description": "Adds two Fan tiles (Speed Up / Speed Down). Single tap bumps the fan speed by one step (1-6). Speed Up turns the fan on if it was off; Speed Down turns it off when already at step 1. Default: on.",
-              "default": true,
-              "required": false
+              "title": "Expose speed up / speed down tiles",
+              "description": "Adds two tiles that change the speed by one step (1 to 6) on each tap. Speed Up turns the fan on if it was off; Speed Down turns it off when already at step 1.",
+              "default": true
             },
             "version": {
               "type": "string",
               "title": "Tuya protocol version",
-              "description": "Local protocol version used by the device. Most CREATE Ceiling Fan units (firmware 2023+) speak 3.4. Older units may need 3.3. Wrong value causes 'ECONNRESET' loops right after connecting.",
+              "description": "Leave on 3.4 for most CREATE fans (2023 and later). Try 3.3 for older units. A wrong value shows up as 'ECONNRESET' right after connecting.",
               "enum": ["3.1", "3.2", "3.3", "3.4", "3.5"],
-              "default": "3.4",
-              "required": false
+              "default": "3.4"
             }
           }
         }
       }
     }
-  }
+  },
+  "layout": [
+    "name",
+    {
+      "key": "devices",
+      "type": "array",
+      "title": "Fans",
+      "orderable": false,
+      "buttonText": "Add a fan",
+      "items": [
+        "devices[].name",
+        "devices[].ip",
+        "devices[].id",
+        {
+          "key": "devices[].key",
+          "type": "password"
+        },
+        "devices[].light",
+        {
+          "type": "fieldset",
+          "title": "Advanced options",
+          "expandable": true,
+          "expanded": false,
+          "items": [
+            "devices[].toggles",
+            "devices[].speedButtons",
+            "devices[].version"
+          ]
+        }
+      ]
+    }
+  ]
 }
