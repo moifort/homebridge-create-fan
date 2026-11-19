@@ -8,6 +8,9 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "types": [
+      "node"
+    ],
     "skipLibCheck": true,
     "declaration": true,
     "outDir": "dist",
